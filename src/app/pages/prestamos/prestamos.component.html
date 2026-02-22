@@ -1,0 +1,41 @@
+<div class="page">
+  <h1 class="title">Prestamos</h1>
+
+  @if (loading) {
+    <div class="empty">Cargando...</div>
+  }
+
+  @if (!loading) {
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Deudor</th>
+            <th>Tipo</th>
+            <th>Monto</th>
+            <th>Cobrado</th>
+            <th>Pendiente</th>
+            <th>Inicio</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of prestamos; track p.id) {
+            <tr>
+              <td><a [routerLink]="['/deudores', p.deudor_id]" class="dlink">{{ p.deudor_nombre }}</a></td>
+              <td>{{ p.tipo }}</td>
+              <td class="amt mo">S/ {{ fmt(p.monto_original) }}</td>
+              <td class="mo g">S/ {{ fmt(p.total_pagado) }}</td>
+              <td class="mo r">S/ {{ fmt(p.saldo_pendiente) }}</td>
+              <td class="mo mu">{{ p.fecha_inicio | date:"dd/MM/yyyy" }}</td>
+              <td><span [class]="'est e-' + p.estado">{{ p.estado }}</span></td>
+            </tr>
+          }
+          @if (!prestamos.length) {
+            <tr><td colspan="7" class="empty">Sin prestamos</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

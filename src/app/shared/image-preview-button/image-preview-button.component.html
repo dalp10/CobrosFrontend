@@ -1,0 +1,33 @@
+<!-- Botón para abrir la vista previa -->
+@if (src) {
+  <button type="button" class="preview-trigger" (click)="abrir()" title="Ver imagen en tamaño completo">
+    {{ label }}
+  </button>
+}
+
+<!-- Modal de vista previa -->
+@if (modalVisible) {
+  <div class="ip-overlay" (click)="cerrar()">
+    <div class="ip-modal" (click)="$event.stopPropagation()">
+
+      <div class="ip-header">
+        <span class="ip-title">👁️ Vista previa</span>
+        <div class="ip-actions">
+          <a [href]="src!" [download]="'comprobante'" class="ip-dl" title="Descargar">
+            ⬇️ Descargar
+          </a>
+          <button class="ip-close" (click)="cerrar()" title="Cerrar">✕</button>
+        </div>
+      </div>
+
+      <div class="ip-body">
+        <img [src]="src!" class="ip-img" alt="Vista previa del comprobante">
+      </div>
+
+      <div class="ip-footer">
+        <span class="ip-hint">Haz clic fuera de la imagen para cerrar</span>
+      </div>
+
+    </div>
+  </div>
+}

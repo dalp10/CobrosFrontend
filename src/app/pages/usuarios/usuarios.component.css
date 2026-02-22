@@ -1,0 +1,249 @@
+.page {
+  padding: 24px;
+  max-width: 1000px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.btn-new {
+  background: linear-gradient(135deg, #4f8ef7, #7c5cfc);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.empty {
+  padding: 30px;
+  text-align: center;
+  color: #7a839e;
+}
+
+.twrap {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+
+th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: .63rem;
+  text-transform: uppercase;
+  color: #7a839e;
+  border-bottom: 1px solid #2e3450;
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(46, 52, 80, .35);
+}
+
+.bold { font-weight: 600; }
+.mo { font-family: monospace; font-size: .75rem; }
+.mu { color: #7a839e; }
+
+.rol {
+  font-size: .65rem;
+  padding: 2px 8px;
+  border-radius: 8px;
+  text-transform: capitalize;
+}
+
+.r-admin { background: rgba(79, 142, 247, .15); color: #4f8ef7; }
+.r-viewer { background: rgba(122, 131, 158, .15); color: #7a839e; }
+
+.est {
+  font-size: .65rem;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.activo { background: rgba(34, 211, 160, .15); color: #22d3a0; }
+.inactivo { background: rgba(247, 95, 95, .15); color: #f75f5f; }
+
+.row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.act-btn {
+  background: none;
+  border: 1px solid #2e3450;
+  border-radius: 6px;
+  padding: 3px 7px;
+  cursor: pointer;
+  font-size: .8rem;
+}
+
+.act-btn.edit:hover { border-color: #4f8ef7; }
+.act-btn.key:hover  { border-color: #f7c948; }
+
+/* ── Modal / Overlay ── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-head h2 {
+  font-size: .95rem;
+  font-weight: 700;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #7a839e;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.close-btn:hover { color: #f75f5f; }
+
+/* ── Form grid ── */
+
+.fgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+}
+
+.f {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.f.full { grid-column: 1 / -1; }
+.f.has-error label { color: #f75f5f; }
+
+label {
+  font-size: .68rem;
+  color: #7a839e;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.req { color: #f75f5f; }
+
+input,
+select {
+  background: #0d0f14;
+  border: 1px solid #2e3450;
+  border-radius: 8px;
+  color: #e8ecf4;
+  padding: 8px 11px;
+  font-size: .82rem;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+
+input:focus,
+select:focus { border-color: #4f8ef7; }
+
+select option { background: #1e2230; }
+
+.ferr { font-size: .68rem; color: #f75f5f; }
+
+.form-alert {
+  background: rgba(247, 95, 95, .1);
+  border: 1px solid rgba(247, 95, 95, .3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: .78rem;
+  color: #f75f5f;
+  margin-top: 12px;
+}
+
+.form-ok {
+  background: rgba(34, 211, 160, .1);
+  border: 1px solid rgba(34, 211, 160, .3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: .78rem;
+  color: #22d3a0;
+  margin-top: 12px;
+}
+
+.mfooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  background: none;
+  border: 1px solid #2e3450;
+  color: #7a839e;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: .82rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #4f8ef7, #7c5cfc);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 20px;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-save:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}

@@ -1,0 +1,174 @@
+<div class="page">
+  <div class="page-header">
+    <h1 class="title">Pagos</h1>
+    <button type="button" class="btn btn-nuevo" (click)="abrirCrear()">
+      <span class="btn-icon">＋</span> Nuevo Pago
+    </button>
+  </div>
+
+  <form [formGroup]="filters" (ngSubmit)="buscar()" class="filtros">
+    <input type="date" formControlName="desde">
+    <input type="date" formControlName="hasta">
+    <select formControlName="metodo">
+      <option value="">Todos</option>
+      <option value="efectivo">Efectivo</option>
+      <option value="yape">Yape</option>
+      <option value="plin">Plin</option>
+      <option value="transferencia">Transferencia</option>
+      <option value="pandero">Pandero</option>
+    </select>
+    <button type="submit" class="btn">Filtrar</button>
+    <button type="button" class="btn-excel" (click)="exportExcel()">📊 Excel</button>
+    <button type="button" class="btn-clr" (click)="limpiar()">Limpiar</button>
+  </form>
+
+  @if (pagos.length) {
+    <div class="totbar">
+      <span>{{ pagos.length }} pagos</span>
+      <span class="tot">Total: S/ {{ fmt(total) }}</span>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="empty">Cargando...</div>
+  }
+
+  @if (!loading) {
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Deudor</th>
+            <th>Concepto</th>
+            <th>Monto</th>
+            <th>Metodo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of pagos; track p.id; let i = $index) {
+            <tr>
+              <td class="mu">{{ i + 1 }}</td>
+              <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
+              <td>
+                <a [routerLink]="['/deudores', p.deudor_id]" class="dlink">
+                  {{ p.deudor_nombre || '-' }}
+                </a>
+              </td>
+              <td>{{ p.concepto || '-' }}</td>
+              <td class="amt mo">S/ {{ fmt(p.monto) }}</td>
+              <td><span [class]="'mb m-' + p.metodo_pago">{{ p.metodo_pago }}</span></td>
+              <td>
+                <button class="btn-edit" (click)="abrirEditar(p)" title="Editar pago">✏️</button>
+              </td>
+            </tr>
+          }
+          @if (!pagos.length) {
+            <tr><td colspan="7" class="empty">Sin pagos</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ─── MODAL CREAR / EDITAR PAGO ──────────────────────── -->
+@if (modalVisible) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <span class="modal-titulo">
+          {{ modoModal === 'crear' ? '✦ Nuevo Pago' : '✦ Editar Pago' }}
+        </span>
+        <button class="modal-close" (click)="cerrarModal()">✕</button>
+      </div>
+
+      <!-- FORMULARIO -->
+      <form [formGroup]="pagoForm" class="modal-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Deudor</label>
+            <input type="text" formControlName="deudor_nombre" placeholder="Nombre del deudor">
+          </div>
+          <div class="form-group">
+            <label>Fecha de Pago</label>
+            <input type="date" formControlName="fecha_pago">
+          </div>
+          <div class="form-group">
+            <label>Concepto</label>
+            <input type="text" formControlName="concepto" placeholder="Descripción del pago">
+          </div>
+          <div class="form-group">
+            <label>Monto (S/)</label>
+            <input type="number" formControlName="monto" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div class="form-group">
+            <label>Método de Pago</label>
+            <select formControlName="metodo_pago">
+              <option value="efectivo">Efectivo</option>
+              <option value="yape">Yape</option>
+              <option value="plin">Plin</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="pandero">Pandero</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>N° Operación</label>
+            <input type="text" formControlName="numero_operacion" placeholder="Opcional">
+          </div>
+        </div>
+      </form>
+
+      <!-- DIVISOR -->
+      <div class="preview-divider">
+        <span class="preview-label">Vista Previa</span>
+      </div>
+
+      <!-- TARJETA PREVIEW -->
+      <div class="preview-card">
+        <div class="preview-row">
+          <div class="preview-item">
+            <span class="pi-label">Deudor</span>
+            <span class="pi-val">{{ previewData.deudor_nombre }}</span>
+          </div>
+          <div class="preview-item">
+            <span class="pi-label">Fecha</span>
+            <span class="pi-val mo">{{ previewData.fecha_pago || '—' }}</span>
+          </div>
+        </div>
+        <div class="preview-row">
+          <div class="preview-item">
+            <span class="pi-label">Concepto</span>
+            <span class="pi-val">{{ previewData.concepto }}</span>
+          </div>
+          <div class="preview-item">
+            <span class="pi-label">N° Operación</span>
+            <span class="pi-val mo">{{ previewData.numero_operacion }}</span>
+          </div>
+        </div>
+        <div class="preview-row preview-bottom">
+          <div class="preview-item">
+            <span class="pi-label">Método</span>
+            <span [class]="'mb m-' + previewData.metodo_pago">{{ previewData.metodo_pago }}</span>
+          </div>
+          <div class="preview-item preview-monto">
+            <span class="pi-label">Monto Total</span>
+            <span class="pi-monto">S/ {{ fmt(previewData.monto) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCIONES -->
+      <div class="modal-actions">
+        <button type="button" class="btn-clr" (click)="cerrarModal()">Cancelar</button>
+        <button type="button" class="btn btn-confirm" (click)="confirmarGuardar()">
+          {{ modoModal === 'crear' ? '✓ Confirmar y Guardar' : '✓ Confirmar y Actualizar' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

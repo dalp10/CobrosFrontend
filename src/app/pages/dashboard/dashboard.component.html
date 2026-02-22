@@ -1,0 +1,114 @@
+<div class="page">
+  <h1 class="title">Dashboard</h1>
+
+  @if (loading) {
+    <div class="empty">Cargando...</div>
+  }
+
+  @if (data && !loading) {
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="scard">
+        <span class="sico">💰</span>
+        <div>
+          <span class="slbl">Total cobrado</span>
+          <span class="sval green">S/ {{ fmt(data.totales.total_cobrado) }}</span>
+        </div>
+      </div>
+      <div class="scard">
+        <span class="sico">📤</span>
+        <div>
+          <span class="slbl">Total prestado</span>
+          <span class="sval blue">S/ {{ fmt(data.totales.total_prestado) }}</span>
+        </div>
+      </div>
+      <div class="scard">
+        <span class="sico">⏳</span>
+        <div>
+          <span class="slbl">Pendiente</span>
+          <span class="sval red">S/ {{ fmt(data.totales.total_prestado - data.totales.total_cobrado) }}</span>
+        </div>
+      </div>
+      <div class="scard">
+        <span class="sico">👥</span>
+        <div>
+          <span class="slbl">Deudores activos</span>
+          <span class="sval white">{{ data.porDeudor.length }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row2">
+
+      <!-- GRÁFICO DE BARRAS: cobros por mes -->
+      <div class="card wide">
+        <h2 class="ctitle">Cobros últimos 12 meses</h2>
+        @if (data.porMes.length) {
+          <canvas #barChart class="chart-canvas"></canvas>
+        } @else {
+          <div class="empty-chart">Sin datos de cobros</div>
+        }
+      </div>
+
+      <!-- GRÁFICO DONA: por método de pago -->
+      <div class="card narrow">
+        <h2 class="ctitle">Por método de pago</h2>
+        @if (data.porMetodo.length) {
+          <canvas #donutChart class="donut-canvas"></canvas>
+          <div class="legend">
+            @for (m of data.porMetodo; track m.metodo_pago) {
+              <div class="legend-item">
+                <span class="legend-dot" [style.background]="metodoColor(m.metodo_pago)"></span>
+                <span class="legend-lbl">{{ m.metodo_pago }}</span>
+                <span class="legend-val">S/ {{ fmt(m.total) }}</span>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-chart">Sin pagos</div>
+        }
+      </div>
+
+    </div>
+
+    <!-- TABLA DEUDORES -->
+    <div class="card">
+      <h2 class="ctitle">Resumen por deudor</h2>
+      <div class="twrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Deudor</th>
+              <th>Cobrado</th>
+              <th>Prestado</th>
+              <th>Pendiente</th>
+              <th>Último pago</th>
+              <th>Avance</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of data.porDeudor; track d.id) {
+              <tr>
+                <td><a [routerLink]="['/deudores', d.id]" class="dlink">{{ d.nombre }}</a></td>
+                <td class="mo green">S/ {{ fmt(d.total_pagado) }}</td>
+                <td class="mo blue">S/ {{ fmt(d.total_prestado) }}</td>
+                <td class="mo red">S/ {{ fmt(d.total_prestado - d.total_pagado) }}</td>
+                <td class="mo mu">{{ d.ultimo_pago ? (d.ultimo_pago | date:"dd/MM/yyyy") : '—' }}</td>
+                <td>
+                  <div class="prog-row">
+                    <div class="pbar">
+                      <div class="pfill" [style.width.%]="pct(d.total_pagado, d.total_prestado)"></div>
+                    </div>
+                    <span class="ppct">{{ pct(d.total_pagado, d.total_prestado).toFixed(0) }}%</span>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  }
+</div>

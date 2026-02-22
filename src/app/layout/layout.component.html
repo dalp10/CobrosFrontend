@@ -1,0 +1,19 @@
+<div class="shell">
+  <nav class="sidebar">
+    <div class="logo">Cobros</div>
+    <ul class="nav">
+      <li><a (click)="nav('dashboard')" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}">Dashboard</a></li>
+      <li><a (click)="nav('deudores')" routerLinkActive="active">Deudores</a></li>
+      <li><a (click)="nav('prestamos')" routerLinkActive="active">Prestamos</a></li>
+      <li><a (click)="nav('pagos')" routerLinkActive="active">Pagos</a></li>
+    </ul>
+    <div class="footer">
+      @if (auth.currentUser(); as u) {
+        <span class="uname">{{ u.nombre }}</span>
+        <span class="urole">{{ u.rol }}</span>
+      }
+      <button (click)="auth.logout()">Salir</button>
+    </div>
+  </nav>
+  <main class="content"><router-outlet></router-outlet></main>
+</div>
