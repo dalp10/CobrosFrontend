@@ -1,0 +1,144 @@
+<div class="page">
+  <div class="topbar">
+    <h1 class="title">Deudores</h1>
+    <button class="btn-new" (click)="openModal()">+ Nuevo deudor</button>
+  </div>
+
+  <!-- ALERTAS -->
+  @if (alertas.length) {
+    <div class="alertas-box">
+      <div class="alertas-head">
+        <span>⚠️ Deudores sin pago reciente</span>
+        <div class="dias-ctrl">
+          <span>Mostrar sin pago hace más de</span>
+          <select [(ngModel)]="diasAlerta" (change)="calcularAlertas()" [ngModelOptions]="{standalone:true}" class="dias-sel">
+            <option [ngValue]="15">15 días</option>
+            <option [ngValue]="30">30 días</option>
+            <option [ngValue]="60">60 días</option>
+            <option [ngValue]="90">90 días</option>
+          </select>
+        </div>
+      </div>
+      <div class="alertas-list">
+        @for (a of alertas; track a.id) {
+          <div class="alerta-item">
+            <div class="alerta-avatar">{{ a.nombre[0] }}{{ a.apellidos[0] }}</div>
+            <div class="alerta-info">
+              <a [routerLink]="['/deudores', a.id]" class="alerta-name">{{ a.nombre }} {{ a.apellidos }}</a>
+              <span class="alerta-meta">
+                @if (a.ultimo_pago) { Último pago: {{ a.ultimo_pago | date:"dd/MM/yyyy" }} (hace {{ diasDesde(a.ultimo_pago) }} días) }
+                @else { Sin pagos registrados }
+              </span>
+            </div>
+            <span class="alerta-pendiente">S/ {{ fmt(a.saldo_pendiente) }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="dias-config">
+    <span class="dias-label">Alertas sin pago hace más de</span>
+    <select [(ngModel)]="diasAlerta" (change)="calcularAlertas()" [ngModelOptions]="{standalone:true}" class="dias-sel">
+      <option [ngValue]="15">15 días</option>
+      <option [ngValue]="30">30 días</option>
+      <option [ngValue]="60">60 días</option>
+      <option [ngValue]="90">90 días</option>
+    </select>
+  </div>
+
+  <input class="search" type="text" placeholder="Buscar por nombre, apellido o DNI..."
+    [(ngModel)]="searchTerm" (input)="filtrar()" [ngModelOptions]="{standalone: true}">
+
+  @if (loading) { <div class="empty">Cargando...</div> }
+  @if (!loading && filtered.length === 0) { <div class="empty">Sin deudores encontrados.</div> }
+
+  @if (!loading && filtered.length) {
+    <div class="grid">
+      @for (d of filtered; track d.id) {
+        <div class="card">
+          <div class="chead">
+            <div class="avatar">{{ d.nombre[0] }}{{ d.apellidos[0] }}</div>
+            <div class="cinfo">
+              <a [routerLink]="['/deudores', d.id]" class="name">{{ d.nombre }} {{ d.apellidos }}</a>
+              @if (d.dni) { <div class="sub">DNI {{ d.dni }}</div> }
+              @if (d.telefono) { <div class="sub">{{ d.telefono }}</div> }
+            </div>
+            <div class="cactions">
+              <button class="icon-btn edit" (click)="openModal(d)" title="Editar">✏️</button>
+            </div>
+          </div>
+          <div class="nums">
+            <div class="nitem"><span class="nlbl">Prestado</span><span class="nval blue">S/ {{ fmt(d.total_prestado) }}</span></div>
+            <div class="nitem"><span class="nlbl">Cobrado</span><span class="nval green">S/ {{ fmt(d.total_pagado) }}</span></div>
+            <div class="nitem"><span class="nlbl">Pendiente</span><span class="nval red">S/ {{ fmt(d.saldo_pendiente) }}</span></div>
+          </div>
+          <div class="prog">
+            <div class="pbar"><div class="pfill" [style.width.%]="pct(d.total_pagado, d.total_prestado)"></div></div>
+            <span class="ppct">{{ pct(d.total_pagado, d.total_prestado) | number:"1.0-0" }}%</span>
+          </div>
+          <div class="foot">
+            @if (d.ultimo_pago) { <span>Ultimo pago: {{ d.ultimo_pago | date:"dd/MM/yyyy" }}</span> }
+            @else { <span class="mu">Sin pagos aun</span> }
+            <a [routerLink]="['/deudores', d.id]" class="ver">Ver detalle →</a>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- MODAL -->
+@if (showModal) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>{{ editando ? 'Editar deudor' : 'Nuevo deudor' }}</h2>
+        <button class="close-btn" (click)="closeModal()">✕</button>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="guardar()">
+        <div class="mgrid">
+          <div class="f" [class.has-error]="fi('nombre')">
+            <label>Nombre <span class="req">*</span></label>
+            <input type="text" formControlName="nombre" placeholder="Juan">
+            @if (fi('nombre')) { <span class="ferr">El nombre es obligatorio</span> }
+          </div>
+          <div class="f" [class.has-error]="fi('apellidos')">
+            <label>Apellidos <span class="req">*</span></label>
+            <input type="text" formControlName="apellidos" placeholder="Perez Garcia">
+            @if (fi('apellidos')) { <span class="ferr">Los apellidos son obligatorios</span> }
+          </div>
+          <div class="f">
+            <label>DNI</label>
+            <input type="text" formControlName="dni" placeholder="12345678" maxlength="8">
+          </div>
+          <div class="f">
+            <label>Telefono</label>
+            <input type="text" formControlName="telefono" placeholder="999888777">
+          </div>
+          <div class="f">
+            <label>Email</label>
+            <input type="email" formControlName="email" placeholder="correo@ejemplo.com">
+          </div>
+          <div class="f">
+            <label>Direccion</label>
+            <input type="text" formControlName="direccion" placeholder="Av. Lima 123">
+          </div>
+          <div class="f full">
+            <label>Notas</label>
+            <textarea formControlName="notas" placeholder="Informacion adicional..." rows="2"></textarea>
+          </div>
+        </div>
+
+        @if (formErr) { <div class="form-alert">❌ {{ formErr }}</div> }
+
+        <div class="mfooter">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancelar</button>
+          <button type="submit" class="btn-save" [disabled]="saving">
+            {{ saving ? 'Guardando...' : (editando ? 'Guardar cambios' : 'Crear deudor') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

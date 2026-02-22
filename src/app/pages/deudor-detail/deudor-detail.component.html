@@ -1,0 +1,270 @@
+<div class="page">
+  @if (loading) { <div class="empty">Cargando...</div> }
+  @if (deudor && !loading) {
+
+    <div class="header">
+      <a routerLink="/deudores" class="back">← Deudores</a>
+      <div class="header-row">
+        <h1>{{ deudor.nombre }} {{ deudor.apellidos }}</h1>
+        <button class="btn-pdf" (click)="exportPDF()">📄 PDF</button>
+        <button class="btn-excel" (click)="exportExcel()">📊 Excel</button>
+      </div>
+      <div class="tags">
+        @if (deudor.dni) { <span class="tag">DNI: {{ deudor.dni }}</span> }
+        @if (deudor.telefono) { <span class="tag">Tel: {{ deudor.telefono }}</span> }
+        <span class="tag g">Cobrado: S/ {{ fmt(deudor.total_pagado) }}</span>
+        <span class="tag r">Pendiente: S/ {{ fmt(deudor.saldo_pendiente) }}</span>
+      </div>
+    </div>
+
+    <!-- PRESTAMOS -->
+    <div class="sec-head">
+      <span class="sec-lbl">Prestamos</span>
+      <button class="btn-sm" (click)="togglePrestamo()">{{ showPrestamo ? '✕ Cancelar' : '+ Nuevo prestamo' }}</button>
+    </div>
+
+    @if (showPrestamo) {
+      <div class="pform mb">
+        <form [formGroup]="prestamoForm" (ngSubmit)="guardarPrestamo()">
+          <div class="fgrid">
+            <div class="f" [class.has-error]="pi('tipo')">
+              <label>Tipo <span class="req">*</span></label>
+              <select formControlName="tipo" [class.input-err]="pi('tipo')">
+                <option value="">Seleccionar...</option>
+                <option value="personal">Personal</option>
+                <option value="hipotecario">Hipotecario</option>
+                <option value="vehicular">Vehicular</option>
+                <option value="comercial">Comercial</option>
+                <option value="pandero">Pandero</option>
+                <option value="otro">Otro</option>
+              </select>
+              @if (pi('tipo')) { <span class="ferr">Selecciona un tipo</span> }
+            </div>
+            <div class="f" [class.has-error]="pi('monto_original')">
+              <label>Monto <span class="req">*</span></label>
+              <input type="number" formControlName="monto_original" placeholder="0.00" step="0.01" [class.input-err]="pi('monto_original')">
+              @if (pi('monto_original')) { <span class="ferr">Obligatorio y mayor a 0</span> }
+            </div>
+            <div class="f" [class.has-error]="pi('fecha_inicio')">
+              <label>Fecha inicio <span class="req">*</span></label>
+              <input type="date" formControlName="fecha_inicio" [class.input-err]="pi('fecha_inicio')">
+              @if (pi('fecha_inicio')) { <span class="ferr">Obligatorio</span> }
+            </div>
+            <div class="f"><label>Fecha fin</label><input type="date" formControlName="fecha_fin"></div>
+            <div class="f"><label>Tasa interes %</label><input type="number" formControlName="tasa_interes" placeholder="0.00" step="0.01" min="0"></div>
+            <div class="f"><label>Cuota mensual S/</label><input type="number" formControlName="cuota_mensual" placeholder="0.00" step="0.01" min="0"></div>
+            <div class="f"><label>Total cuotas</label><input type="number" formControlName="total_cuotas" placeholder="1" min="1"></div>
+            <div class="f"><label>Banco / Entidad</label><input type="text" formControlName="banco" placeholder="BCP, BBVA..."></div>
+            <div class="f full"><label>Descripcion</label><input type="text" formControlName="descripcion" placeholder="Ej: Prestamo para negocio"></div>
+            <div class="f full"><label>Notas</label><textarea formControlName="notas" rows="2"></textarea></div>
+          </div>
+          @if (prestamoErr) { <div class="form-alert">❌ {{ prestamoErr }}</div> }
+          <div class="faction">
+            <button type="submit" class="btn" [disabled]="savingPrestamo">{{ savingPrestamo ? 'Guardando...' : '✅ Crear prestamo' }}</button>
+            @if (prestamoOk) { <span class="ok">✅ Creado!</span> }
+          </div>
+        </form>
+      </div>
+    }
+
+    <div class="lgrid">
+      @for (p of deudor.prestamos; track p.id) {
+        <div class="lcard">
+          <div class="lcard-head">
+            <span class="ltype">{{ p.tipo }}</span>
+            <span [class]="'est e-'+p.estado">{{ p.estado }}</span>
+          </div>
+          <span class="ldesc">{{ p.descripcion || 'Sin descripcion' }}</span>
+          <span class="lamt">S/ {{ fmt(p.monto_original) }}</span>
+          <div class="lmeta">
+            <span class="tsm">{{ p.fecha_inicio | date:"dd/MM/yyyy" }}</span>
+            @if (p.tasa_interes) { <span class="tsm">{{ p.tasa_interes }}%</span> }
+            @if (p.cuota_mensual) { <span class="tsm">Cuota: S/ {{ fmt(p.cuota_mensual) }}</span> }
+          </div>
+        </div>
+      }
+      @if (!deudor.prestamos?.length) { <div class="empty">Sin prestamos.</div> }
+    </div>
+
+    <!-- PAGOS -->
+    <div class="sec-title">Historial de pagos</div>
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Metodo</th><th>N Op.</th><th>Imagen</th><th>Acciones</th></tr>
+        </thead>
+        <tbody>
+          @for (p of deudor.pagos; track p.id; let i = $index) {
+            <tr>
+              <td class="mu">{{ i+1 }}</td>
+              <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
+              <td>{{ p.concepto || '-' }}</td>
+              <td class="amt mo">S/ {{ fmt(p.monto) }}</td>
+              <td><span [class]="'badge m-'+p.metodo_pago">{{ p.metodo_pago }}</span></td>
+              <td class="mo mu">{{ p.numero_operacion || '-' }}</td>
+              <td>
+                @if (p.imagen_url) {
+                  <button class="img-btn" (click)="verImagen(p.imagen_url)">🖼️ Ver</button>
+                } @else { <span class="mu">-</span> }
+              </td>
+              <td>
+                <div class="row-actions">
+                  <button class="act-btn edit" (click)="editarPago(p)" title="Editar">✏️</button>
+                  <button class="act-btn del" (click)="confirmarEliminar(p)" title="Eliminar">🗑️</button>
+                </div>
+              </td>
+            </tr>
+          }
+          @if (!deudor.pagos?.length) { <tr><td colspan="8" class="empty">Sin pagos</td></tr> }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- REGISTRAR PAGO -->
+    <div class="sec-title">Registrar pago</div>
+    <div class="pform">
+      <form [formGroup]="pagoForm" (ngSubmit)="registrarPago()">
+        <div class="fgrid">
+          <div class="f">
+            <label>Prestamo</label>
+            <select formControlName="prestamo_id">
+              <option [ngValue]="null">Sin especificar</option>
+              @for (p of deudor.prestamos; track p.id) {
+                <option [ngValue]="p.id">{{ p.descripcion || p.tipo }}</option>
+              }
+            </select>
+          </div>
+          <div class="f" [class.has-error]="fi('fecha_pago')">
+            <label>Fecha <span class="req">*</span></label>
+            <input type="date" formControlName="fecha_pago" [class.input-err]="fi('fecha_pago')">
+            @if (fi('fecha_pago')) { <span class="ferr">Obligatorio</span> }
+          </div>
+          <div class="f" [class.has-error]="fi('monto')">
+            <label>Monto <span class="req">*</span></label>
+            <input type="number" formControlName="monto" placeholder="0.00" step="0.01" [class.input-err]="fi('monto')">
+            @if (fi('monto')) { <span class="ferr">Obligatorio y mayor a 0</span> }
+          </div>
+          <div class="f" [class.has-error]="fi('metodo_pago')">
+            <label>Metodo <span class="req">*</span></label>
+            <select formControlName="metodo_pago" [class.input-err]="fi('metodo_pago')">
+              <option value="">Seleccionar...</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="yape">Yape</option>
+              <option value="plin">Plin</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="pandero">Pandero</option>
+            </select>
+            @if (fi('metodo_pago')) { <span class="ferr">Obligatorio</span> }
+          </div>
+          <div class="f"><label>N Operacion</label><input type="text" formControlName="numero_operacion" placeholder="Opcional"></div>
+          <div class="f"><label>Concepto</label><input type="text" formControlName="concepto" placeholder="Opcional"></div>
+          <div class="f full">
+            <label>Comprobante <span class="hint">(PNG/JPG max 5MB)</span></label>
+            <div class="upload-area" (click)="fileInput.click()" (dragover)="$event.preventDefault()" (drop)="onDrop($event)" [class.upload-has-file]="imagenPreview">
+              @if (imagenPreview) {
+                <img [src]="imagenPreview" class="preview">
+                <button type="button" class="remove-img" (click)="removeImage($event)">✕ Quitar</button>
+              } @else {
+                <span class="upload-icon">📎</span>
+                <span class="upload-txt">Click o arrastra una imagen</span>
+                <span class="upload-sub">PNG, JPG hasta 5MB</span>
+              }
+            </div>
+            @if (imgError) { <span class="ferr">{{ imgError }}</span> }
+            <input #fileInput type="file" accept="image/png,image/jpg,image/jpeg" style="display:none" (change)="onFileChange($event)">
+          </div>
+        </div>
+        <div class="faction">
+          <button type="submit" class="btn" [disabled]="saving">
+            @if (saving) { <span class="spinner"></span> }
+            {{ saving ? 'Guardando...' : '✅ Registrar Pago' }}
+          </button>
+          @if (pagoOk) { <span class="ok">✅ Pago registrado!</span> }
+          @if (pagoErr) { <span class="err">❌ {{ pagoErr }}</span> }
+        </div>
+      </form>
+    </div>
+
+  }
+</div>
+
+<!-- MODAL: VER IMAGEN -->
+@if (imgModal) {
+  <div class="overlay" (click)="imgModal=null;cdr.detectChanges()">
+    <div class="img-modal" (click)="$event.stopPropagation()">
+      <div class="img-modal-head">
+        <span>Comprobante</span>
+        <div class="img-modal-actions">
+          <a [href]="imgModal" target="_blank" class="btn-dl">⬇️ Descargar</a>
+          <button class="close-btn" (click)="imgModal=null;cdr.detectChanges()">✕</button>
+        </div>
+      </div>
+      <img [src]="imgModal" class="img-full">
+    </div>
+  </div>
+}
+
+<!-- MODAL: EDITAR PAGO -->
+@if (editPago) {
+  <div class="overlay" (click)="cerrarEditPago()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Editar pago</h2>
+        <button class="close-btn" (click)="cerrarEditPago()">✕</button>
+      </div>
+      <form [formGroup]="editPagoForm" (ngSubmit)="guardarEditPago()">
+        <div class="fgrid">
+          <div class="f"><label>Fecha <span class="req">*</span></label><input type="date" formControlName="fecha_pago"></div>
+          <div class="f"><label>Monto <span class="req">*</span></label><input type="number" formControlName="monto" step="0.01"></div>
+          <div class="f">
+            <label>Metodo <span class="req">*</span></label>
+            <select formControlName="metodo_pago">
+              <option value="efectivo">Efectivo</option>
+              <option value="yape">Yape</option>
+              <option value="plin">Plin</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="pandero">Pandero</option>
+            </select>
+          </div>
+          <div class="f"><label>N Operacion</label><input type="text" formControlName="numero_operacion"></div>
+          <div class="f full"><label>Concepto</label><input type="text" formControlName="concepto"></div>
+          <div class="f full">
+            <label>Comprobante <span class="hint">(PNG/JPG max 5MB)</span></label>
+            <div class="upload-area" (click)="editFileInput.click()" (dragover)="$event.preventDefault()" (drop)="onEditDrop($event)" [class.upload-has-file]="editImagenPreview">
+              @if (editImagenPreview) {
+                <img [src]="editImagenPreview" class="preview">
+                <button type="button" class="remove-img" (click)="removeEditImage($event)">✕ Quitar</button>
+              } @else {
+                <span class="upload-icon">📎</span>
+                <span class="upload-txt">Click o arrastra una imagen</span>
+                <span class="upload-sub">PNG, JPG hasta 5MB</span>
+              }
+            </div>
+            @if (editImagenError) { <span class="ferr">{{ editImagenError }}</span> }
+            <input #editFileInput type="file" accept="image/png,image/jpg,image/jpeg" style="display:none" (change)="onEditFileChange($event)">
+          </div>
+        </div>
+        @if (editPagoErr) { <div class="form-alert">❌ {{ editPagoErr }}</div> }
+        <div class="mfooter">
+          <button type="button" class="btn-cancel" (click)="cerrarEditPago()">Cancelar</button>
+          <button type="submit" class="btn-save" [disabled]="savingEdit">{{ savingEdit ? 'Guardando...' : 'Guardar cambios' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- MODAL: CONFIRMAR ELIMINAR -->
+@if (deletePago) {
+  <div class="overlay" (click)="deletePago=null;cdr.detectChanges()">
+    <div class="modal-sm" (click)="$event.stopPropagation()">
+      <h3>¿Eliminar pago?</h3>
+      <p>Pago de <strong>S/ {{ fmt(deletePago.monto) }}</strong> del {{ deletePago.fecha_pago | date:"dd/MM/yyyy" }}</p>
+      <p class="warn-txt">Esta acción no se puede deshacer.</p>
+      <div class="mfooter">
+        <button class="btn-cancel" (click)="deletePago=null;cdr.detectChanges()">Cancelar</button>
+        <button class="btn-del" (click)="eliminarPago()" [disabled]="deleting">{{ deleting ? 'Eliminando...' : '🗑️ Eliminar' }}</button>
+      </div>
+    </div>
+  </div>
+}

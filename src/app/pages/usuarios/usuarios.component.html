@@ -1,0 +1,129 @@
+<div class="page">
+  <div class="topbar">
+    <h1 class="title">Usuarios</h1>
+    <button class="btn-new" (click)="openModal()">+ Nuevo usuario</button>
+  </div>
+  @if (loading) { <div class="empty">Cargando...</div> }
+  @if (!loading) {
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Creado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of usuarios; track u.id) {
+            <tr>
+              <td class="bold">{{ u.nombre }}</td>
+              <td class="mu">{{ u.email }}</td>
+              <td><span [class]="'rol r-'+u.rol">{{ u.rol }}</span></td>
+              <td><span [class]="u.activo ? 'est activo' : 'est inactivo'">{{ u.activo ? 'Activo' : 'Inactivo' }}</span></td>
+              <td class="mo mu">{{ u.created_at | date:"dd/MM/yyyy" }}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="act-btn edit" (click)="openModal(u)" title="Editar">✏️</button>
+                  <button class="act-btn key" (click)="openPass(u)" title="Cambiar contraseña">🔑</button>
+                </div>
+              </td>
+            </tr>
+          }
+          @if (!usuarios.length) {
+            <tr><td colspan="6" class="empty">Sin usuarios</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (showModal) {
+  <div class="overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>{{ editando ? 'Editar usuario' : 'Nuevo usuario' }}</h2>
+        <button class="close-btn" (click)="closeModal()">✕</button>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="guardar()">
+        <div class="fgrid">
+          <div class="f" [class.has-error]="fi('nombre')">
+            <label>Nombre <span class="req">*</span></label>
+            <input type="text" formControlName="nombre" placeholder="Juan Perez">
+            @if (fi('nombre')) { <span class="ferr">Obligatorio</span> }
+          </div>
+          <div class="f" [class.has-error]="fi('email')">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" formControlName="email" placeholder="correo@ejemplo.com">
+            @if (fi('email') && form.get('email')?.errors?.['required']) { <span class="ferr">Obligatorio</span> }
+            @if (fi('email') && form.get('email')?.errors?.['email']) { <span class="ferr">Email inválido</span> }
+          </div>
+          @if (!editando) {
+            <div class="f full" [class.has-error]="fi('password')">
+              <label>Contraseña <span class="req">*</span></label>
+              <input type="password" formControlName="password" placeholder="Mínimo 6 caracteres">
+              @if (fi('password') && form.get('password')?.errors?.['minlength']) { <span class="ferr">Mínimo 6 caracteres</span> }
+              @if (fi('password') && form.get('password')?.errors?.['required']) { <span class="ferr">Obligatorio</span> }
+            </div>
+          }
+          <div class="f">
+            <label>Rol</label>
+            <select formControlName="rol">
+              <option value="admin">Admin</option>
+              <option value="viewer">Solo lectura</option>
+            </select>
+          </div>
+          @if (editando) {
+            <div class="f">
+              <label>Estado</label>
+              <select formControlName="activo">
+                <option [ngValue]="true">Activo</option>
+                <option [ngValue]="false">Inactivo</option>
+              </select>
+            </div>
+          }
+        </div>
+        @if (formErr) { <div class="form-alert">❌ {{ formErr }}</div> }
+        <div class="mfooter">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancelar</button>
+          <button type="submit" class="btn-save" [disabled]="saving">
+            {{ saving ? 'Guardando...' : (editando ? 'Guardar' : 'Crear usuario') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (showPass) {
+  <div class="overlay" (click)="closePass()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Cambiar contraseña — {{ showPass.nombre }}</h2>
+        <button class="close-btn" (click)="closePass()">✕</button>
+      </div>
+      <form [formGroup]="passForm" (ngSubmit)="cambiarPass()">
+        <div class="fgrid">
+          <div class="f full" [class.has-error]="pfi('password_nuevo')">
+            <label>Nueva contraseña <span class="req">*</span></label>
+            <input type="password" formControlName="password_nuevo" placeholder="Mínimo 6 caracteres">
+            @if (pfi('password_nuevo') && passForm.get('password_nuevo')?.errors?.['minlength']) { <span class="ferr">Mínimo 6 caracteres</span> }
+            @if (pfi('password_nuevo') && passForm.get('password_nuevo')?.errors?.['required']) { <span class="ferr">Obligatorio</span> }
+          </div>
+        </div>
+        @if (passErr) { <div class="form-alert">❌ {{ passErr }}</div> }
+        @if (passOk) { <div class="form-ok">✅ Contraseña actualizada</div> }
+        <div class="mfooter">
+          <button type="button" class="btn-cancel" (click)="closePass()">Cancelar</button>
+          <button type="submit" class="btn-save" [disabled]="savingPass">
+            {{ savingPass ? 'Guardando...' : 'Cambiar contraseña' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

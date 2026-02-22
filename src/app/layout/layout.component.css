@@ -1,0 +1,91 @@
+.shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: #161920;
+  border-right: 1px solid #2e3450;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+}
+
+.logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 0 20px 24px;
+  color: #4f8ef7;
+}
+
+.nav {
+  list-style: none;
+  flex: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.nav a {
+  display: block;
+  padding: 10px 20px;
+  color: #7a839e;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nav a:hover {
+  color: #e8ecf4;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav a.active {
+  color: #4f8ef7;
+  border-left-color: #4f8ef7;
+  background: rgba(79, 142, 247, 0.08);
+}
+
+.footer {
+  padding: 16px 20px;
+  border-top: 1px solid #2e3450;
+}
+
+.uname {
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: block;
+  color: #e8ecf4;
+}
+
+.urole {
+  font-size: 0.65rem;
+  color: #7a839e;
+  text-transform: uppercase;
+  display: block;
+}
+
+button {
+  margin-top: 10px;
+  background: none;
+  border: 1px solid #2e3450;
+  color: #7a839e;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  background: #0d0f14;
+}

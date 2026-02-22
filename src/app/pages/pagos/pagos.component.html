@@ -1,0 +1,66 @@
+<div class="page">
+  <h1 class="title">Pagos</h1>
+
+  <form [formGroup]="filters" (ngSubmit)="buscar()" class="filtros">
+    <input type="date" formControlName="desde">
+    <input type="date" formControlName="hasta">
+    <select formControlName="metodo">
+      <option value="">Todos</option>
+      <option value="efectivo">Efectivo</option>
+      <option value="yape">Yape</option>
+      <option value="plin">Plin</option>
+      <option value="transferencia">Transferencia</option>
+      <option value="pandero">Pandero</option>
+    </select>
+    <button type="submit" class="btn">Filtrar</button>
+    <button type="button" class="btn-excel" (click)="exportExcel()">📊 Excel</button>
+    <button type="button" class="btn-clr" (click)="limpiar()">Limpiar</button>
+  </form>
+
+  @if (pagos.length) {
+    <div class="totbar">
+      <span>{{ pagos.length }} pagos</span>
+      <span class="tot">Total: S/ {{ fmt(total) }}</span>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="empty">Cargando...</div>
+  }
+
+  @if (!loading) {
+    <div class="twrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Deudor</th>
+            <th>Concepto</th>
+            <th>Monto</th>
+            <th>Metodo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of pagos; track p.id; let i = $index) {
+            <tr>
+              <td class="mu">{{ i + 1 }}</td>
+              <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
+              <td>
+                <a [routerLink]="['/deudores', p.deudor_id]" class="dlink">
+                  {{ p.deudor_nombre || '-' }}
+                </a>
+              </td>
+              <td>{{ p.concepto || '-' }}</td>
+              <td class="amt mo">S/ {{ fmt(p.monto) }}</td>
+              <td><span [class]="'mb m-' + p.metodo_pago">{{ p.metodo_pago }}</span></td>
+            </tr>
+          }
+          @if (!pagos.length) {
+            <tr><td colspan="6" class="empty">Sin pagos</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

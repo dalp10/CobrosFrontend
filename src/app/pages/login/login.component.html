@@ -1,0 +1,21 @@
+<div class="page">
+  <div class="card">
+    <div class="logo">Sistema de Cobros</div>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" formControlName="email" placeholder="admin@cobros.com">
+      </div>
+      <div class="field">
+        <label>Contrasena</label>
+        <input type="password" formControlName="password" placeholder="admin123">
+      </div>
+      <button type="submit" [disabled]="loading">
+        {{ loading ? 'Ingresando...' : 'Ingresar' }}
+      </button>
+      @if (error) {
+        <p class="err">{{ error }}</p>
+      }
+    </form>
+  </div>
+</div>

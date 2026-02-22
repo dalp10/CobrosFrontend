@@ -1,0 +1,148 @@
+.page {
+  padding: 24px;
+  max-width: 1200px;
+}
+
+.title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.filtros {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  align-items: center;
+}
+
+input, select {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 8px;
+  color: #e8ecf4;
+  padding: 7px 11px;
+  font-size: .8rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.btn {
+  background: linear-gradient(135deg, #4f8ef7, #7c5cfc);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: .8rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-excel {
+  background: rgba(34, 211, 160, .15);
+  color: #22d3a0;
+  border: 1px solid #22d3a0;
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: .8rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-clr {
+  background: none;
+  border: 1px solid #2e3450;
+  color: #7a839e;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: .8rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.totbar {
+  display: flex;
+  justify-content: space-between;
+  font-size: .8rem;
+  color: #7a839e;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #1e2230;
+  border-radius: 8px;
+  border: 1px solid #2e3450;
+}
+
+.tot {
+  color: #22d3a0;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.empty {
+  padding: 30px;
+  text-align: center;
+  color: #7a839e;
+}
+
+.twrap {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .81rem;
+}
+
+th {
+  padding: 9px 13px;
+  text-align: left;
+  font-size: .63rem;
+  text-transform: uppercase;
+  color: #7a839e;
+  border-bottom: 1px solid #2e3450;
+  white-space: nowrap;
+}
+
+td {
+  padding: 9px 13px;
+  border-bottom: 1px solid rgba(46, 52, 80, .35);
+}
+
+.amt {
+  color: #22d3a0;
+  font-weight: 700;
+}
+
+.mo {
+  font-family: monospace;
+  font-size: .75rem;
+}
+
+.mu {
+  color: #7a839e;
+}
+
+.dlink {
+  color: #4f8ef7;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Método de pago badges */
+.mb {
+  font-size: .63rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: capitalize;
+}
+
+.m-yape         { background: rgba(100, 50, 200, .2);   color: #b388ff; }
+.m-efectivo     { background: rgba(34, 211, 160, .15);  color: #22d3a0; }
+.m-transferencia{ background: rgba(79, 142, 247, .15);  color: #4f8ef7; }
+.m-plin         { background: rgba(247, 135, 79, .15);  color: #f7874f; }
+.m-pandero      { background: rgba(247, 201, 72, .15);  color: #f7c948; }
