@@ -1,1 +1,86 @@
-/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #0d0f14;
+  color: #e8ecf4;
+  font-family: 'Sora', -apple-system, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: #0d0f14; }
+::-webkit-scrollbar-thumb  { background: #2e3450; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4f8ef7; }
+
+a { color: #4f8ef7; }
+input, select, textarea, button { font-family: inherit; }
+
+/* ── Modo claro ── */
+:root { color-scheme: dark; }
+
+[data-theme="light"] {
+  --bg: #f0f2f8;
+  --sidebar-bg: #ffffff;
+  --card-bg: #ffffff;
+  --border: #e2e6f0;
+  --text: #1a1d2e;
+  --text-muted: #6b7280;
+}
+
+[data-theme="light"] body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="light"] .layout-sidebar {
+  background: var(--sidebar-bg) !important;
+  border-right-color: var(--border) !important;
+}
+
+[data-theme="light"] .card,
+[data-theme="light"] .pform,
+[data-theme="light"] .twrap,
+[data-theme="light"] .scard,
+[data-theme="light"] .lcard,
+[data-theme="light"] .modal,
+[data-theme="light"] .modal-sm {
+  background: var(--card-bg) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="light"] th,
+[data-theme="light"] td {
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="light"] th {
+  background: #f8f9fc !important;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: #f8f9fc !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="light"] .nav-link {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] .nav-link.active,
+[data-theme="light"] .nav-link:hover {
+  background: #f0f4ff !important;
+  color: #4f8ef7 !important;
+}
+
+[data-theme="light"] .overlay {
+  background: rgba(0,0,0,.4) !important;
+}
