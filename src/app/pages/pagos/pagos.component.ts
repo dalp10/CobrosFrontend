@@ -21,6 +21,19 @@ export class PagosComponent implements OnInit {
   loading = true;
   filters = this.fb.group({ desde: [''], hasta: [''], metodo: [''] });
 
+  // Modal de vista previa
+  modalVisible = false;
+  pagoPreview: any = null;
+  pagoForm = this.fb.group({
+    deudor_nombre: [''],
+    concepto: [''],
+    monto: [''],
+    metodo_pago: [''],
+    fecha_pago: [''],
+    numero_operacion: ['']
+  });
+  modoModal: 'crear' | 'editar' = 'crear';
+
   get total(): number {
     return this.pagos.reduce((s, p) => s + +(p.monto || 0), 0);
   }
@@ -45,6 +58,70 @@ export class PagosComponent implements OnInit {
   limpiar(): void {
     this.filters.reset({ desde: '', hasta: '', metodo: '' });
     this.buscar();
+  }
+
+  abrirCrear(): void {
+    this.modoModal = 'crear';
+    this.pagoPreview = null;
+    this.pagoForm.reset({
+      deudor_nombre: '',
+      concepto: '',
+      monto: '',
+      metodo_pago: 'efectivo',
+      fecha_pago: new Date().toISOString().split('T')[0],
+      numero_operacion: ''
+    });
+    this.modalVisible = true;
+    this.cdr.detectChanges();
+  }
+
+  abrirEditar(pago: any): void {
+    this.modoModal = 'editar';
+    this.pagoPreview = { ...pago };
+    this.pagoForm.patchValue({
+      deudor_nombre: pago.deudor_nombre || '',
+      concepto: pago.concepto || '',
+      monto: pago.monto || '',
+      metodo_pago: pago.metodo_pago || 'efectivo',
+      fecha_pago: pago.fecha_pago ? pago.fecha_pago.split('T')[0] : '',
+      numero_operacion: pago.numero_operacion || ''
+    });
+    this.modalVisible = true;
+    this.cdr.detectChanges();
+  }
+
+  get previewData(): any {
+    const v = this.pagoForm.value as any;
+    return {
+      deudor_nombre: v.deudor_nombre || '-',
+      concepto: v.concepto || '-',
+      monto: v.monto || 0,
+      metodo_pago: v.metodo_pago || '-',
+      fecha_pago: v.fecha_pago || '',
+      numero_operacion: v.numero_operacion || '-'
+    };
+  }
+
+  confirmarGuardar(): void {
+    const v = this.pagoForm.value as any;
+    const payload = { ...v, monto: +v.monto };
+    if (this.modoModal === 'crear') {
+      this.http.post<any>(environment.apiUrl + '/pagos', payload).subscribe({
+        next: () => { this.cerrarModal(); this.buscar(); },
+        error: () => { this.cerrarModal(); }
+      });
+    } else if (this.pagoPreview?.id) {
+      this.http.put<any>(`${environment.apiUrl}/pagos/${this.pagoPreview.id}`, payload).subscribe({
+        next: () => { this.cerrarModal(); this.buscar(); },
+        error: () => { this.cerrarModal(); }
+      });
+    }
+  }
+
+  cerrarModal(): void {
+    this.modalVisible = false;
+    this.pagoPreview = null;
+    this.cdr.detectChanges();
   }
 
   exportExcel(): void {

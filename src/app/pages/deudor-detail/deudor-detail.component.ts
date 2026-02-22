@@ -4,11 +4,12 @@ import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
+import { ImagePreviewButtonComponent } from '../../shared/image-preview-button/image-preview-button.component';
 
 @Component({
   selector: 'app-deudor-detail',
   standalone: true,
-  imports: [RouterLink, DatePipe, ReactiveFormsModule],
+  imports: [RouterLink, DatePipe, ReactiveFormsModule, ImagePreviewButtonComponent],
   templateUrl: './deudor-detail.component.html',
   styleUrl: './deudor-detail.component.css'
 })

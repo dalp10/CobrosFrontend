@@ -4,6 +4,8 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ReactiveFormsModule, FormsModule, FormBuilder, Validators } from '@angular/forms';
 import { environment } from '../../../environments/environment';
+import { ImagePreviewButtonComponent } from '../../shared/image-preview-button/image-preview-button.component';
+
 
 @Component({
   selector: 'app-deudores',
