@@ -1,4 +1,4 @@
-﻿import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs/operators';
@@ -15,11 +15,16 @@ export class AuthService {
   constructor() {
     const token = localStorage.getItem(this.TOKEN_KEY);
     if (token) {
-      // NO llamar /auth/me - solo decodificar el token local
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
+        const exp = payload.exp as number | undefined;
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (exp != null && exp < nowSec) {
+          localStorage.removeItem(this.TOKEN_KEY);
+          return;
+        }
         this.currentUser.set({ id: payload.id, nombre: payload.nombre || 'Admin', email: payload.email || '', rol: payload.rol || 'admin' });
-      } catch(e) {
+      } catch (e) {
         localStorage.removeItem(this.TOKEN_KEY);
       }
     }

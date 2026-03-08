@@ -1,21 +1,58 @@
 <div class="page">
   <div class="card">
-    <div class="logo">Sistema de Cobros</div>
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="field">
-        <label>Email</label>
-        <input type="email" formControlName="email" placeholder="admin@cobros.com">
+    <h1 class="logo" id="login-title">Sistema de Cobros</h1>
+    <p class="tagline">Inicia sesión para continuar</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form" aria-labelledby="login-title">
+      <div class="field" [class.has-error]="emailErr">
+        <label for="login-email">Email</label>
+        <input
+          id="login-email"
+          type="email"
+          formControlName="email"
+          placeholder="tu@email.com"
+          autocomplete="email"
+          [attr.aria-invalid]="emailErr ? 'true' : null"
+          [attr.aria-describedby]="emailErr ? 'email-err' : null">
+        @if (emailErr) {
+          <span class="field-err" id="email-err">{{ emailErr }}</span>
+        }
       </div>
-      <div class="field">
-        <label>Contrasena</label>
-        <input type="password" formControlName="password" placeholder="admin123">
+
+      <div class="field" [class.has-error]="passwordErr">
+        <label for="login-password">Contraseña</label>
+        <div class="password-wrap">
+          <input
+            id="login-password"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            [attr.aria-invalid]="passwordErr ? 'true' : null"
+            [attr.aria-describedby]="passwordErr ? 'password-err' : null">
+          <button
+            type="button"
+            class="toggle-pwd"
+            (click)="showPassword = !showPassword"
+            [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            [title]="showPassword ? 'Ocultar' : 'Mostrar'">
+            {{ showPassword ? '🙈' : '👁️' }}
+          </button>
+        </div>
+        @if (passwordErr) {
+          <span class="field-err" id="password-err">{{ passwordErr }}</span>
+        }
       </div>
-      <button type="submit" [disabled]="loading">
+
+      @if (error) {
+        <div class="err-box" role="alert">
+          {{ error }}
+        </div>
+      }
+
+      <button type="submit" class="btn" [disabled]="loading">
         {{ loading ? 'Ingresando...' : 'Ingresar' }}
       </button>
-      @if (error) {
-        <p class="err">{{ error }}</p>
-      }
     </form>
   </div>
 </div>

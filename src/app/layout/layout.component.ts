@@ -14,7 +14,14 @@ export class LayoutComponent {
   auth = inject(AuthService);
   private router = inject(Router);
 
+  sidebarOpen = false;
+
   nav(path: string): void {
     this.router.navigate([path]);
+    this.sidebarOpen = false;
+  }
+
+  toggleSidebar(): void {
+    this.sidebarOpen = !this.sidebarOpen;
   }
 }

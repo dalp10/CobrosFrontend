@@ -1,26 +1,26 @@
 <div class="page">
-  @if (loading) { <div class="empty">Cargando...</div> }
+  @if (loading) { <app-skeleton [rows]="8" [cells]="4" /> }
   @if (deudor && !loading) {
 
     <div class="header">
-      <a routerLink="/deudores" class="back">← Deudores</a>
+      <a routerLink="/deudores" class="back" aria-label="Volver a Deudores">← Deudores</a>
       <div class="header-row">
         <h1>{{ deudor.nombre }} {{ deudor.apellidos }}</h1>
-        <button class="btn-pdf" (click)="exportPDF()">📄 PDF</button>
-        <button class="btn-excel" (click)="exportExcel()">📊 Excel</button>
+        <button type="button" class="btn-pdf" (click)="exportPDF()" aria-label="Exportar a PDF">📄 PDF</button>
+        <button type="button" class="btn-excel" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
       </div>
       <div class="tags">
         @if (deudor.dni) { <span class="tag">DNI: {{ deudor.dni }}</span> }
         @if (deudor.telefono) { <span class="tag">Tel: {{ deudor.telefono }}</span> }
-        <span class="tag g">Cobrado: S/ {{ fmt(deudor.total_pagado) }}</span>
-        <span class="tag r">Pendiente: S/ {{ fmt(deudor.saldo_pendiente) }}</span>
+        <span class="tag g">Cobrado: S/ {{ deudor.total_pagado | formatNumber }}</span>
+        <span class="tag r">Pendiente: S/ {{ deudor.saldo_pendiente | formatNumber }}</span>
       </div>
     </div>
 
     <!-- PRESTAMOS -->
     <div class="sec-head">
-      <span class="sec-lbl">Prestamos</span>
-      <button class="btn-sm" (click)="togglePrestamo()">{{ showPrestamo ? '✕ Cancelar' : '+ Nuevo prestamo' }}</button>
+      <span class="sec-lbl">Préstamos</span>
+      <button type="button" class="btn-sm" (click)="togglePrestamo()">{{ showPrestamo ? '✕ Cancelar' : '+ Nuevo préstamo' }}</button>
     </div>
 
     @if (showPrestamo) {
@@ -55,12 +55,12 @@
             <div class="f"><label>Cuota mensual S/</label><input type="number" formControlName="cuota_mensual" placeholder="0.00" step="0.01" min="0"></div>
             <div class="f"><label>Total cuotas</label><input type="number" formControlName="total_cuotas" placeholder="1" min="1"></div>
             <div class="f"><label>Banco / Entidad</label><input type="text" formControlName="banco" placeholder="BCP, BBVA..."></div>
-            <div class="f full"><label>Descripcion</label><input type="text" formControlName="descripcion" placeholder="Ej: Prestamo para negocio"></div>
+            <div class="f full"><label>Descripción</label><input type="text" formControlName="descripcion" placeholder="Ej: Préstamo para negocio"></div>
             <div class="f full"><label>Notas</label><textarea formControlName="notas" rows="2"></textarea></div>
           </div>
           @if (prestamoErr) { <div class="form-alert">❌ {{ prestamoErr }}</div> }
           <div class="faction">
-            <button type="submit" class="btn" [disabled]="savingPrestamo">{{ savingPrestamo ? 'Guardando...' : '✅ Crear prestamo' }}</button>
+            <button type="submit" class="btn" [disabled]="savingPrestamo">{{ savingPrestamo ? 'Guardando...' : '✅ Crear préstamo' }}</button>
             @if (prestamoOk) { <span class="ok">✅ Creado!</span> }
           </div>
         </form>
@@ -74,16 +74,21 @@
             <span class="ltype">{{ p.tipo }}</span>
             <span [class]="'est e-'+p.estado">{{ p.estado }}</span>
           </div>
-          <span class="ldesc">{{ p.descripcion || 'Sin descripcion' }}</span>
-          <span class="lamt">S/ {{ fmt(p.monto_original) }}</span>
+          <span class="ldesc">{{ p.descripcion || 'Sin descripción' }}</span>
+          <span class="lamt">S/ {{ p.monto_original | formatNumber }}</span>
           <div class="lmeta">
             <span class="tsm">{{ p.fecha_inicio | date:"dd/MM/yyyy" }}</span>
             @if (p.tasa_interes) { <span class="tsm">{{ p.tasa_interes }}%</span> }
-            @if (p.cuota_mensual) { <span class="tsm">Cuota: S/ {{ fmt(p.cuota_mensual) }}</span> }
+            @if (p.cuota_mensual) { <span class="tsm">Cuota: S/ {{ p.cuota_mensual | formatNumber }}</span> }
           </div>
         </div>
       }
-      @if (!deudor.prestamos?.length) { <div class="empty">Sin prestamos.</div> }
+      @if (!deudor.prestamos?.length) {
+        <div class="empty">
+          <span class="empty-icon">📋</span>
+          Sin préstamos. Agrega uno con «Nuevo préstamo».
+        </div>
+      }
     </div>
 
     <!-- PAGOS -->
@@ -91,7 +96,16 @@
     <div class="twrap">
       <table>
         <thead>
-          <tr><th>#</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Metodo</th><th>N Op.</th><th>Imagen</th><th>Acciones</th></tr>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Concepto</th>
+            <th scope="col">Monto</th>
+            <th scope="col">Método</th>
+            <th scope="col">N.º Op.</th>
+            <th scope="col">Imagen</th>
+            <th scope="col">Acciones</th>
+          </tr>
         </thead>
         <tbody>
           @for (p of deudor.pagos; track p.id; let i = $index) {
@@ -99,23 +113,30 @@
               <td class="mu">{{ i+1 }}</td>
               <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
               <td>{{ p.concepto || '-' }}</td>
-              <td class="amt mo">S/ {{ fmt(p.monto) }}</td>
+              <td class="amt mo">S/ {{ p.monto | formatNumber }}</td>
               <td><span [class]="'badge m-'+p.metodo_pago">{{ p.metodo_pago }}</span></td>
               <td class="mo mu">{{ p.numero_operacion || '-' }}</td>
               <td>
                 @if (p.imagen_url) {
-                  <button class="img-btn" (click)="verImagen(p.imagen_url)">🖼️ Ver</button>
+                  <button type="button" class="img-btn" (click)="verImagen(p.imagen_url)" aria-label="Ver comprobante">🖼️ Ver</button>
                 } @else { <span class="mu">-</span> }
               </td>
               <td>
                 <div class="row-actions">
-                  <button class="act-btn edit" (click)="editarPago(p)" title="Editar">✏️</button>
-                  <button class="act-btn del" (click)="confirmarEliminar(p)" title="Eliminar">🗑️</button>
+                  <button type="button" class="act-btn edit" (click)="editarPago(p)" title="Editar pago" aria-label="Editar pago">✏️</button>
+                  <button type="button" class="act-btn del" (click)="confirmarEliminar(p)" title="Eliminar pago" aria-label="Eliminar pago">🗑️</button>
                 </div>
               </td>
             </tr>
           }
-          @if (!deudor.pagos?.length) { <tr><td colspan="8" class="empty">Sin pagos</td></tr> }
+          @if (!deudor.pagos?.length) {
+          <tr>
+            <td colspan="8" class="empty-cell">
+              <span class="empty-icon">💳</span>
+              Sin pagos registrados. Usa el formulario de abajo para registrar uno.
+            </td>
+          </tr>
+          }
         </tbody>
       </table>
     </div>
@@ -125,8 +146,7 @@
     <div class="pform">
       <form [formGroup]="pagoForm" (ngSubmit)="registrarPago()">
         <div class="fgrid">
-          <div class="f">
-            <label>Prestamo</label>
+          <div class="f"><label>Préstamo</label>
             <select formControlName="prestamo_id">
               <option [ngValue]="null">Sin especificar</option>
               @for (p of deudor.prestamos; track p.id) {
@@ -145,7 +165,7 @@
             @if (fi('monto')) { <span class="ferr">Obligatorio y mayor a 0</span> }
           </div>
           <div class="f" [class.has-error]="fi('metodo_pago')">
-            <label>Metodo <span class="req">*</span></label>
+            <label>Método <span class="req">*</span></label>
             <select formControlName="metodo_pago" [class.input-err]="fi('metodo_pago')">
               <option value="">Seleccionar...</option>
               <option value="efectivo">Efectivo</option>
@@ -156,7 +176,7 @@
             </select>
             @if (fi('metodo_pago')) { <span class="ferr">Obligatorio</span> }
           </div>
-          <div class="f"><label>N Operacion</label><input type="text" formControlName="numero_operacion" placeholder="Opcional"></div>
+          <div class="f"><label>N.º operación</label><input type="text" formControlName="numero_operacion" placeholder="Opcional"></div>
           <div class="f"><label>Concepto</label><input type="text" formControlName="concepto" placeholder="Opcional"></div>
 
           <!-- ─── COMPROBANTE CON VISTA PREVIA ──────────────────── -->
@@ -166,6 +186,9 @@
               @if (imagenPreview) {
                 <img [src]="imagenPreview" class="preview">
                 <button type="button" class="remove-img" (click)="removeImage($event)">✕ Quitar</button>
+                <button type="button" class="btn-ocr" (click)="extraerDatosPago(); $event.stopPropagation()" [disabled]="ocrLoading">
+                  {{ ocrLoading ? 'Leyendo imagen…' : '📄 Extraer datos' }}
+                </button>
               } @else {
                 <span class="upload-icon">📎</span>
                 <span class="upload-txt">Click o arrastra una imagen</span>
@@ -226,7 +249,7 @@
           <div class="f"><label>Fecha <span class="req">*</span></label><input type="date" formControlName="fecha_pago"></div>
           <div class="f"><label>Monto <span class="req">*</span></label><input type="number" formControlName="monto" step="0.01"></div>
           <div class="f">
-            <label>Metodo <span class="req">*</span></label>
+            <label>Método <span class="req">*</span></label>
             <select formControlName="metodo_pago">
               <option value="efectivo">Efectivo</option>
               <option value="yape">Yape</option>
@@ -235,7 +258,7 @@
               <option value="pandero">Pandero</option>
             </select>
           </div>
-          <div class="f"><label>N Operacion</label><input type="text" formControlName="numero_operacion"></div>
+          <div class="f"><label>N.º operación</label><input type="text" formControlName="numero_operacion"></div>
           <div class="f full"><label>Concepto</label><input type="text" formControlName="concepto"></div>
 
           <!-- ─── COMPROBANTE EDICIÓN CON VISTA PREVIA ──────────── -->
@@ -245,6 +268,9 @@
               @if (editImagenPreview) {
                 <img [src]="editImagenPreview" class="preview">
                 <button type="button" class="remove-img" (click)="removeEditImage($event)">✕ Quitar</button>
+                <button type="button" class="btn-ocr" (click)="extraerDatosEditPago(); $event.stopPropagation()" [disabled]="ocrEditLoading">
+                  {{ ocrEditLoading ? 'Leyendo imagen…' : '📄 Extraer datos' }}
+                </button>
               } @else {
                 <span class="upload-icon">📎</span>
                 <span class="upload-txt">Click o arrastra una imagen</span>
@@ -277,7 +303,7 @@
   <div class="overlay" (click)="deletePago=null;cdr.detectChanges()">
     <div class="modal-sm" (click)="$event.stopPropagation()">
       <h3>¿Eliminar pago?</h3>
-      <p>Pago de <strong>S/ {{ fmt(deletePago.monto) }}</strong> del {{ deletePago.fecha_pago | date:"dd/MM/yyyy" }}</p>
+      <p>Pago de <strong>S/ {{ deletePago.monto | formatNumber }}</strong> del {{ deletePago.fecha_pago | date:"dd/MM/yyyy" }}</p>
       <p class="warn-txt">Esta acción no se puede deshacer.</p>
       <div class="mfooter">
         <button class="btn-cancel" (click)="deletePago=null;cdr.detectChanges()">Cancelar</button>

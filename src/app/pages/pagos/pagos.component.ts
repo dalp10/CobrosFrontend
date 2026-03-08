@@ -1,29 +1,35 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef, HostListener } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { PagosService, PagosFilter } from '../../services/pagos.service';
+import { NotificationService } from '../../services/notification.service';
+import { ExportService } from '../../services/export.service';
+import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
+import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
+import { Pago } from '../../models/index';
 
 @Component({
   selector: 'app-pagos',
   standalone: true,
-  imports: [RouterLink, DatePipe, ReactiveFormsModule],
+  imports: [RouterLink, DatePipe, ReactiveFormsModule, FormatNumberPipe, SkeletonComponent],
   templateUrl: './pagos.component.html',
   styleUrl: './pagos.component.css'
 })
 export class PagosComponent implements OnInit {
-  private http = inject(HttpClient);
+  private pagosService = inject(PagosService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
+  private notify = inject(NotificationService);
+  private exportService = inject(ExportService);
 
-  pagos: any[] = [];
+  pagos: Pago[] = [];
   loading = true;
   filters = this.fb.group({ desde: [''], hasta: [''], metodo: [''] });
 
   // Modal de vista previa
   modalVisible = false;
-  pagoPreview: any = null;
+  pagoPreview: Pago | null = null;
   pagoForm = this.fb.group({
     deudor_nombre: [''],
     concepto: [''],
@@ -44,12 +50,12 @@ export class PagosComponent implements OnInit {
 
   buscar(): void {
     this.loading = true;
-    const v = this.filters.value as any;
-    let params = new HttpParams().set('limit', '200');
-    if (v.desde) params = params.set('desde', v.desde);
-    if (v.hasta) params = params.set('hasta', v.hasta);
-    if (v.metodo) params = params.set('metodo', v.metodo);
-    this.http.get<any>(environment.apiUrl + '/pagos', { params }).subscribe({
+    const v = this.filters.value as { desde?: string; hasta?: string; metodo?: string };
+    const filters: PagosFilter = { limit: 200 };
+    if (v.desde) filters.desde = v.desde;
+    if (v.hasta) filters.hasta = v.hasta;
+    if (v.metodo) filters.metodo = v.metodo;
+    this.pagosService.getAll(filters).subscribe({
       next: (r) => { this.pagos = r.data; this.loading = false; this.cdr.detectChanges(); },
       error: () => { this.loading = false; this.cdr.detectChanges(); }
     });
@@ -75,13 +81,13 @@ export class PagosComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  abrirEditar(pago: any): void {
+  abrirEditar(pago: Pago): void {
     this.modoModal = 'editar';
     this.pagoPreview = { ...pago };
     this.pagoForm.patchValue({
       deudor_nombre: pago.deudor_nombre || '',
       concepto: pago.concepto || '',
-      monto: pago.monto || '',
+      monto: pago.monto != null ? String(pago.monto) : '',
       metodo_pago: pago.metodo_pago || 'efectivo',
       fecha_pago: pago.fecha_pago ? pago.fecha_pago.split('T')[0] : '',
       numero_operacion: pago.numero_operacion || ''
@@ -103,17 +109,18 @@ export class PagosComponent implements OnInit {
   }
 
   confirmarGuardar(): void {
-    const v = this.pagoForm.value as any;
-    const payload = { ...v, monto: +v.monto };
+    const v = this.pagoForm.value as { deudor_nombre?: string; concepto?: string; monto?: string; metodo_pago?: string; fecha_pago?: string; numero_operacion?: string };
+    const montoNum = +(v.monto ?? 0);
+    const payload = { ...v, monto: montoNum };
     if (this.modoModal === 'crear') {
-      this.http.post<any>(environment.apiUrl + '/pagos', payload).subscribe({
-        next: () => { this.cerrarModal(); this.buscar(); },
-        error: () => { this.cerrarModal(); }
+      this.pagosService.create(payload as any).subscribe({
+        next: () => { this.cerrarModal(); this.buscar(); this.notify.success('Pago creado'); },
+        error: (e) => { this.cerrarModal(); this.notify.error(e.error?.error || 'Error al crear pago'); }
       });
     } else if (this.pagoPreview?.id) {
-      this.http.put<any>(`${environment.apiUrl}/pagos/${this.pagoPreview.id}`, payload).subscribe({
-        next: () => { this.cerrarModal(); this.buscar(); },
-        error: () => { this.cerrarModal(); }
+      this.pagosService.update(this.pagoPreview.id, payload as Partial<Pago>).subscribe({
+        next: () => { this.cerrarModal(); this.buscar(); this.notify.success('Pago actualizado'); },
+        error: (e) => { this.cerrarModal(); this.notify.error(e.error?.error || 'Error al actualizar'); }
       });
     }
   }
@@ -124,11 +131,16 @@ export class PagosComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.modalVisible) this.cerrarModal();
+  }
+
   exportExcel(): void {
-    const rows: any[][] = [
+    const rows: (string | number)[][] = [
       ['#', 'Fecha', 'Deudor', 'Concepto', 'Monto', 'Metodo', 'N Operacion']
     ];
-    this.pagos.forEach((p: any, i: number) => {
+    this.pagos.forEach((p, i) => {
       rows.push([
         i + 1,
         p.fecha_pago ? p.fecha_pago.split('T')[0] : '',
@@ -139,21 +151,8 @@ export class PagosComponent implements OnInit {
         p.numero_operacion || ''
       ]);
     });
-    const total = this.pagos.reduce((s: number, p: any) => s + +(p.monto || 0), 0);
+    const total = this.pagos.reduce((s, p) => s + +(p.monto || 0), 0);
     rows.push(['', '', '', 'TOTAL', total, '', '']);
-    const csv = rows
-      .map((r: any[]) => r.map((c: any) => '"' + String(c).replace(/"/g, '""') + '"').join(','))
-      .join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'pagos_' + new Date().toISOString().split('T')[0] + '.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  fmt(v: any): string {
-    return (+(v ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    this.exportService.downloadCsv(rows, 'pagos_' + new Date().toISOString().split('T')[0] + '.csv');
   }
 }

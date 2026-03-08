@@ -1,50 +1,61 @@
 <div class="page">
-  <div class="page-header">
+  <header class="page-header">
     <h1 class="title">Pagos</h1>
-    <button type="button" class="btn btn-nuevo" (click)="abrirCrear()">
-      <span class="btn-icon">＋</span> Nuevo Pago
+    <button type="button" class="btn btn-nuevo" (click)="abrirCrear()" aria-label="Nuevo pago">
+      <span class="btn-icon">＋</span> Nuevo pago
     </button>
-  </div>
+  </header>
 
   <form [formGroup]="filters" (ngSubmit)="buscar()" class="filtros">
-    <input type="date" formControlName="desde">
-    <input type="date" formControlName="hasta">
-    <select formControlName="metodo">
-      <option value="">Todos</option>
-      <option value="efectivo">Efectivo</option>
-      <option value="yape">Yape</option>
-      <option value="plin">Plin</option>
-      <option value="transferencia">Transferencia</option>
-      <option value="pandero">Pandero</option>
-    </select>
-    <button type="submit" class="btn">Filtrar</button>
-    <button type="button" class="btn-excel" (click)="exportExcel()">📊 Excel</button>
-    <button type="button" class="btn-clr" (click)="limpiar()">Limpiar</button>
+    <div class="filtro-group">
+      <label class="filtro-lbl">Desde</label>
+      <input type="date" formControlName="desde" aria-label="Fecha desde">
+    </div>
+    <div class="filtro-group">
+      <label class="filtro-lbl">Hasta</label>
+      <input type="date" formControlName="hasta" aria-label="Fecha hasta">
+    </div>
+    <div class="filtro-group">
+      <label class="filtro-lbl">Método</label>
+      <select formControlName="metodo" aria-label="Método de pago">
+        <option value="">Todos</option>
+        <option value="efectivo">Efectivo</option>
+        <option value="yape">Yape</option>
+        <option value="plin">Plin</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="pandero">Pandero</option>
+      </select>
+    </div>
+    <div class="filtro-actions">
+      <button type="submit" class="btn btn-filtrar">Filtrar</button>
+      <button type="button" class="btn btn-excel" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
+      <button type="button" class="btn-clr" (click)="limpiar()">Limpiar</button>
+    </div>
   </form>
 
-  @if (pagos.length) {
+  @if (!loading && pagos.length) {
     <div class="totbar">
-      <span>{{ pagos.length }} pagos</span>
-      <span class="tot">Total: S/ {{ fmt(total) }}</span>
+      <span>{{ pagos.length }} pago{{ pagos.length !== 1 ? 's' : '' }}</span>
+      <span class="tot">Total: S/ {{ total | formatNumber }}</span>
     </div>
   }
 
   @if (loading) {
-    <div class="empty">Cargando...</div>
+    <app-skeleton [rows]="8" [cells]="7" />
   }
 
-  @if (!loading) {
+  @if (!loading && pagos.length) {
     <div class="twrap">
       <table>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Fecha</th>
-            <th>Deudor</th>
-            <th>Concepto</th>
-            <th>Monto</th>
-            <th>Metodo</th>
-            <th></th>
+            <th scope="col">#</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Deudor</th>
+            <th scope="col">Concepto</th>
+            <th scope="col">Monto</th>
+            <th scope="col">Método</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
@@ -58,18 +69,24 @@
                 </a>
               </td>
               <td>{{ p.concepto || '-' }}</td>
-              <td class="amt mo">S/ {{ fmt(p.monto) }}</td>
+              <td class="amt mo">S/ {{ p.monto | formatNumber }}</td>
               <td><span [class]="'mb m-' + p.metodo_pago">{{ p.metodo_pago }}</span></td>
               <td>
-                <button class="btn-edit" (click)="abrirEditar(p)" title="Editar pago">✏️</button>
+                <button type="button" class="btn-edit" (click)="abrirEditar(p)" title="Editar pago" aria-label="Editar pago">✏️</button>
               </td>
             </tr>
           }
-          @if (!pagos.length) {
-            <tr><td colspan="7" class="empty">Sin pagos</td></tr>
-          }
         </tbody>
       </table>
+    </div>
+  }
+
+  @if (!loading && !pagos.length) {
+    <div class="empty">
+      <span class="empty-icon">💳</span>
+      <p>Sin pagos que coincidan con el filtro.</p>
+      <p class="empty-hint">Ajusta las fechas o el método, o registra pagos desde el detalle de un deudor.</p>
+      <a [routerLink]="['/deudores']" class="btn-link">Ir a Deudores</a>
     </div>
   }
 </div>
@@ -81,9 +98,9 @@
 
       <div class="modal-header">
         <span class="modal-titulo">
-          {{ modoModal === 'crear' ? '✦ Nuevo Pago' : '✦ Editar Pago' }}
+          {{ modoModal === 'crear' ? 'Nuevo pago' : 'Editar pago' }}
         </span>
-        <button class="modal-close" (click)="cerrarModal()">✕</button>
+        <button type="button" class="modal-close" (click)="cerrarModal()" aria-label="Cerrar">✕</button>
       </div>
 
       <!-- FORMULARIO -->
@@ -116,7 +133,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label>N° Operación</label>
+            <label>N.º operación</label>
             <input type="text" formControlName="numero_operacion" placeholder="Opcional">
           </div>
         </div>
@@ -145,7 +162,7 @@
             <span class="pi-val">{{ previewData.concepto }}</span>
           </div>
           <div class="preview-item">
-            <span class="pi-label">N° Operación</span>
+            <span class="pi-label">N.º operación</span>
             <span class="pi-val mo">{{ previewData.numero_operacion }}</span>
           </div>
         </div>
@@ -155,8 +172,8 @@
             <span [class]="'mb m-' + previewData.metodo_pago">{{ previewData.metodo_pago }}</span>
           </div>
           <div class="preview-item preview-monto">
-            <span class="pi-label">Monto Total</span>
-            <span class="pi-monto">S/ {{ fmt(previewData.monto) }}</span>
+            <span class="pi-label">Monto total</span>
+            <span class="pi-monto">S/ {{ previewData.monto | formatNumber }}</span>
           </div>
         </div>
       </div>

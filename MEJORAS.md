@@ -2,17 +2,15 @@
 
 ## Prioridad alta (impacto rápido)
 
-### 1. Entornos separados (development / production)
-- **Ahora:** Un solo `environment.ts` con `production: true` y API de Railway.
-- **Mejorar:** Crear `environment.development.ts` (API `http://localhost:3000/api`) y `environment.ts` para producción. Usar `ng build` / `ng serve` con el entorno correcto para poder probar contra backend local sin tocar código.
+### 1. ~~Entornos separados (development / production)~~ ✅ Hecho
+- Creado `environment.development.ts` y `fileReplacements` en `angular.json`.
 
 ### 2. Usar los servicios HTTP en lugar de llamar `HttpClient` desde los componentes
 - **Ahora:** Dashboard, deudores, deudor-detail, pagos, prestamos y usuarios llaman `this.http.get/post(...)` con `environment.apiUrl` directamente.
 - **Mejorar:** Mover toda la lógica de API a los servicios (`DeudoresService`, `PagosService`, `PrestamosService`) y que los componentes solo llamen a los servicios. Así se centraliza la URL, los tipos y el manejo de errores.
 
-### 3. Ruta y menú para Usuarios
-- **Ahora:** Existe `pages/usuarios` pero no hay ruta ni enlace en el sidebar.
-- **Mejorar:** Añadir en `app.routes.ts` la ruta (ej. `usuarios`) y en el layout un enlace “Usuarios” (si aplica por rol).
+### 3. ~~Ruta y menú para Usuarios~~ ✅ Hecho
+- Ruta `usuarios` y enlace en el sidebar añadidos.
 
 ### 4. Tipado fuerte: quitar `any` y definir modelos
 - **Ahora:** Muchos `get<any>()`, `(d: any)`, `e: any`, y no hay interfaz `Usuario` para la API de usuarios.
@@ -22,9 +20,8 @@
 
 ## Prioridad media (arquitectura y UX)
 
-### 5. Servicio de notificaciones (toast / snackbar)
-- **Ahora:** Mensajes de éxito/error son texto inline en cada componente (`formErr`, `errMsg`, “✅ Creado!”).
-- **Mejorar:** Un servicio (ej. `NotificationService` o `ToastService`) que muestre mensajes globales (éxito, error, info) en una esquina. Los componentes solo llaman `notify.success('Guardado')` o `notify.error(e.error?.error)`.
+### 5. ~~Servicio de notificaciones (toast / snackbar)~~ ✅ Hecho
+- `NotificationService` + `ToastContainerComponent` integrados en login, guard, deudores, pagos, usuarios, deudor-detail.
 
 ### 6. Helpers compartidos para formato y porcentajes
 - **Ahora:** `fmt()` y `pct()` (o equivalentes) repetidos en dashboard, deudores, deudor-detail, pagos, prestamos.
@@ -34,9 +31,8 @@
 - **Ahora:** Cada pantalla repite `loading = true`, `subscribe({ next, error })`, `loading = false`, `cdr.detectChanges()`.
 - **Mejorar:** Servicios que devuelvan `Observable<T>` y, si quieres, un patrón reutilizable (ej. componente “con loading” o directiva) o simplemente un método helper que maneje loading + error + mensaje. Así se reduce duplicación y se unifica el comportamiento.
 
-### 8. Validar expiración del JWT al cargar la app
-- **Ahora:** Solo se comprueba que exista token; se decodifica el payload para mostrar usuario pero no se comprueba `exp`.
-- **Mejorar:** En `AuthService` (o en el guard), leer `exp` del payload y si está expirado borrar token y redirigir a login. Evita enviar peticiones con token caducado y recibir 403 en cascada.
+### 8. ~~Validar expiración del JWT al cargar la app~~ ✅ Hecho
+- `AuthService` y `authGuard` comprueban `exp` del token; si está expirado se hace logout y redirección a login.
 
 ### 9. Control de acceso por rol (opcional)
 - **Ahora:** Cualquier usuario logueado ve todo el menú (dashboard, deudores, préstamos, pagos).
@@ -80,3 +76,31 @@
 | Funcionalidad  | Activar ruta y menú de Usuarios                              |
 
 Si indicas por dónde quieres empezar (por ejemplo: “entornos”, “servicios HTTP” o “toast”), se puede bajar a pasos concretos o a cambios de código archivo por archivo.
+
+---
+
+## Más mejoras (ideas adicionales)
+
+### 15. ~~Confirmación antes de borrar~~ ✅ Hecho
+- En `eliminarPago()` (deudor-detail) se usa `confirm()` además del modal.
+
+### 16. Skeletons en lugar de “Cargando...”
+- Sustituir el texto “Cargando...” por skeletons (bloques grises animados) en listas y dashboard. La app se siente más rápida y profesional.
+
+### 17. Paginación o “Cargar más”
+- Si las listas pueden ser muy largas (ej. pagos con `limit=200`), añadir paginación en el backend/frontend o un botón “Cargar más” para no traer todo de golpe y mejorar tiempos de carga.
+
+### 18. Reintento en errores de red
+- Para fallos por red (sin respuesta, timeout), usar `retry` o “Reintentar” en el mensaje de error. Útil en conexiones inestables.
+
+### 19. Manejo global de errores
+- Un `ErrorHandler` o interceptor que capture errores no manejados y muestre un mensaje genérico o envíe a una página de error, en lugar de fallar en silencio.
+
+### 20. Diseño responsive / móvil
+- Revisar que el sidebar y las tablas se usen bien en pantallas pequeñas (menú colapsable, tablas con scroll horizontal o cards).
+
+### 21. Seguridad del token (opcional)
+- Valorar usar `sessionStorage` en lugar de `localStorage` para que el token se borre al cerrar la pestaña, o que el backend use cookies httpOnly si quieres más seguridad.
+
+### 22. Títulos de página por ruta
+- Actualizar `document.title` (o meta) según la ruta (ej. “Dashboard – Cobros”, “Deudores – Cobros”) para pestañas y favoritos.

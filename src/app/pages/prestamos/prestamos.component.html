@@ -1,41 +1,60 @@
 <div class="page">
-  <h1 class="title">Prestamos</h1>
+  <header class="page-head">
+    <h1 class="title">Préstamos</h1>
+    @if (!loading) {
+      <p class="subtitle">Total {{ prestamos.length }} préstamo{{ prestamos.length !== 1 ? 's' : '' }}</p>
+    }
+  </header>
 
   @if (loading) {
-    <div class="empty">Cargando...</div>
+    <app-skeleton [rows]="8" [cells]="7" />
   }
 
-  @if (!loading) {
+  @if (!loading && prestamos.length) {
+    <div class="totbar">
+      <span>{{ prestamos.length }} préstamo{{ prestamos.length !== 1 ? 's' : '' }}</span>
+      <span class="tot-label">Monto total: <strong class="tot-val">S/ {{ totalMontoOriginal | formatNumber }}</strong></span>
+      <span class="tot-label">Pendiente: <strong class="tot-pend">S/ {{ totalPendiente | formatNumber }}</strong></span>
+    </div>
+  }
+
+  @if (!loading && prestamos.length) {
     <div class="twrap">
       <table>
         <thead>
           <tr>
-            <th>Deudor</th>
-            <th>Tipo</th>
-            <th>Monto</th>
-            <th>Cobrado</th>
-            <th>Pendiente</th>
-            <th>Inicio</th>
-            <th>Estado</th>
+            <th scope="col">Deudor</th>
+            <th scope="col">Tipo</th>
+            <th scope="col">Monto</th>
+            <th scope="col">Cobrado</th>
+            <th scope="col">Pendiente</th>
+            <th scope="col">Inicio</th>
+            <th scope="col">Estado</th>
           </tr>
         </thead>
         <tbody>
           @for (p of prestamos; track p.id) {
             <tr>
               <td><a [routerLink]="['/deudores', p.deudor_id]" class="dlink">{{ p.deudor_nombre }}</a></td>
-              <td>{{ p.tipo }}</td>
-              <td class="amt mo">S/ {{ fmt(p.monto_original) }}</td>
-              <td class="mo g">S/ {{ fmt(p.total_pagado) }}</td>
-              <td class="mo r">S/ {{ fmt(p.saldo_pendiente) }}</td>
+              <td><span class="tipo">{{ p.tipo }}</span></td>
+              <td class="amt mo">S/ {{ p.monto_original | formatNumber }}</td>
+              <td class="mo g">S/ {{ p.total_pagado | formatNumber }}</td>
+              <td class="mo r">S/ {{ p.saldo_pendiente | formatNumber }}</td>
               <td class="mo mu">{{ p.fecha_inicio | date:"dd/MM/yyyy" }}</td>
               <td><span [class]="'est e-' + p.estado">{{ p.estado }}</span></td>
             </tr>
           }
-          @if (!prestamos.length) {
-            <tr><td colspan="7" class="empty">Sin prestamos</td></tr>
-          }
         </tbody>
       </table>
+    </div>
+  }
+
+  @if (!loading && !prestamos.length) {
+    <div class="empty">
+      <span class="empty-icon" aria-hidden="true">📋</span>
+      <p>Sin préstamos registrados.</p>
+      <p class="empty-hint">Los préstamos se crean desde el detalle de cada deudor.</p>
+      <a [routerLink]="['/deudores']" class="btn-link" aria-label="Ir a la lista de deudores">Ir a Deudores</a>
     </div>
   }
 </div>

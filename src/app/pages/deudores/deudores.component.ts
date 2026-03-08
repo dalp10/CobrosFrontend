@@ -1,35 +1,58 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef, HostListener } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ReactiveFormsModule, FormsModule, FormBuilder, Validators } from '@angular/forms';
-import { environment } from '../../../environments/environment';
+import { DeudoresService } from '../../services/deudores.service';
+import { NotificationService } from '../../services/notification.service';
 import { ImagePreviewButtonComponent } from '../../shared/image-preview-button/image-preview-button.component';
-
+import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
+import { FormatPercentPipe } from '../../shared/pipes/format-percent.pipe';
+import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
+import { Deudor } from '../../models/index';
 
 @Component({
   selector: 'app-deudores',
   standalone: true,
-  imports: [RouterLink, DatePipe, DecimalPipe, ReactiveFormsModule, FormsModule],
+  imports: [RouterLink, DatePipe, DecimalPipe, ReactiveFormsModule, FormsModule, FormatNumberPipe, FormatPercentPipe, SkeletonComponent],
   templateUrl: './deudores.component.html',
   styleUrl: './deudores.component.css'
 })
 export class DeudoresComponent implements OnInit {
-  private http = inject(HttpClient);
+  private deudoresService = inject(DeudoresService);
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
+  private notify = inject(NotificationService);
 
-  deudores: any[] = [];
-  filtered: any[] = [];
+  deudores: Deudor[] = [];
+  filtered: Deudor[] = [];
   loading = true;
   showModal = false;
-  editando: any = null;
+  editando: Deudor | null = null;
   saving = false;
   formErr = '';
   submitted = false;
   searchTerm = '';
   diasAlerta = 30;
-  alertas: any[] = [];
+  alertas: Deudor[] = [];
+
+  readonly PAGE_SIZE = 20;
+  deudoresVisible = this.PAGE_SIZE;
+
+  get deudoresParaMostrar(): Deudor[] {
+    return this.filtered.slice(0, this.deudoresVisible);
+  }
+
+  get hayMasDeudores(): boolean {
+    return this.filtered.length > this.deudoresVisible;
+  }
+
+  get cantidadVerMas(): number {
+    return Math.min(this.PAGE_SIZE, this.filtered.length - this.deudoresVisible);
+  }
+
+  verMasDeudores(): void {
+    this.deudoresVisible += this.PAGE_SIZE;
+  }
 
   form = this.fb.group({
     nombre:    ['', Validators.required],
@@ -45,24 +68,33 @@ export class DeudoresComponent implements OnInit {
 
   load(): void {
     this.loading = true;
-    this.http.get<any[]>(environment.apiUrl + '/deudores').subscribe({
-      next: (d) => { this.deudores = d; this.filtrar(); this.calcularAlertas(); this.loading = false; this.cdr.detectChanges(); },
-      error: () => { this.loading = false; this.cdr.detectChanges(); }
+    this.deudoresVisible = this.PAGE_SIZE;
+    this.deudoresService.getAll().subscribe({
+      next: (d) => {
+        this.deudores = d;
+        this.filtrar();
+        this.calcularAlertas();
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.loading = false; this.deudores = []; this.filtered = []; this.alertas = []; this.cdr.detectChanges(); }
     });
   }
 
   filtrar(): void {
+    const list = Array.isArray(this.deudores) ? this.deudores : [];
     const term = this.searchTerm.toLowerCase().trim();
-    if (!term) { this.filtered = this.deudores; return; }
-    this.filtered = this.deudores.filter(d =>
-      (d.nombre + ' ' + d.apellidos).toLowerCase().includes(term) ||
-      (d.dni || '').includes(term) ||
-      (d.telefono || '').includes(term)
+    this.deudoresVisible = this.PAGE_SIZE;
+    if (!term) { this.filtered = list; this.cdr.detectChanges(); return; }
+    this.filtered = list.filter(d =>
+      (d && (d.nombre + ' ' + (d.apellidos || '')).toLowerCase().includes(term)) ||
+      (d && (d.dni || '').includes(term)) ||
+      (d && (d.telefono || '').includes(term))
     );
     this.cdr.detectChanges();
   }
 
-  openModal(deudor?: any): void {
+  openModal(deudor?: Deudor): void {
     this.editando = deudor || null;
     this.submitted = false;
     this.formErr = '';
@@ -89,6 +121,11 @@ export class DeudoresComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.showModal) this.closeModal();
+  }
+
   fi(field: string): boolean {
     const c = this.form.get(field);
     return !!(c && c.invalid && (c.touched || this.submitted));
@@ -99,19 +136,30 @@ export class DeudoresComponent implements OnInit {
     if (this.form.invalid) { this.form.markAllAsTouched(); this.cdr.detectChanges(); return; }
     this.saving = true; this.formErr = '';
     const v = this.form.value;
+    const body = {
+      nombre: v.nombre ?? '',
+      apellidos: v.apellidos ?? '',
+      dni: v.dni ?? undefined,
+      telefono: v.telefono ?? undefined,
+      email: v.email ?? undefined,
+      direccion: v.direccion ?? undefined,
+      notas: v.notas ?? undefined
+    };
     const req = this.editando
-      ? this.http.put(environment.apiUrl + '/deudores/' + this.editando.id, v)
-      : this.http.post(environment.apiUrl + '/deudores', v);
+      ? this.deudoresService.update(this.editando.id, body)
+      : this.deudoresService.create(body);
     req.subscribe({
-      next: () => { this.saving = false; this.closeModal(); this.load(); },
-      error: (e) => { this.saving = false; this.formErr = e.error?.error || 'Error al guardar'; this.cdr.detectChanges(); }
+      next: () => { this.saving = false; this.closeModal(); this.load(); this.notify.success(this.editando ? 'Deudor actualizado' : 'Deudor creado'); },
+      error: (e) => { this.saving = false; this.formErr = e.error?.error || 'Error al guardar'; this.cdr.detectChanges(); this.notify.error(this.formErr); }
     });
   }
 
   calcularAlertas(): void {
+    const list = Array.isArray(this.deudores) ? this.deudores : [];
     const hoy = new Date();
-    this.alertas = this.deudores.filter(d => {
-      if (+d.saldo_pendiente <= 0) return false;
+    this.alertas = list.filter(d => {
+      if (!d || typeof d !== 'object') return false;
+      if (+(d.saldo_pendiente ?? 0) <= 0) return false;
       if (!d.ultimo_pago) return true;
       const diff = Math.floor((hoy.getTime() - new Date(d.ultimo_pago).getTime()) / 86400000);
       return diff >= this.diasAlerta;
@@ -122,7 +170,4 @@ export class DeudoresComponent implements OnInit {
   diasDesde(fecha: string): number {
     return Math.floor((new Date().getTime() - new Date(fecha).getTime()) / 86400000);
   }
-
-  fmt(v: any): string { return (+(v ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-  pct(paid: any, total: any): number { return total ? Math.min(100, (+(paid || 0) / +total) * 100) : 0; }
 }

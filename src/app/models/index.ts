@@ -119,6 +119,15 @@ export interface AuthUser {
   rol: string;
 }
 
+export interface Usuario {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+  activo: boolean;
+  created_at?: string;
+}
+
 export interface LoginResponse {
   token: string;
   user: AuthUser;

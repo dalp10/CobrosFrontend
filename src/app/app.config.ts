@@ -1,13 +1,19 @@
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, ErrorHandler } from '@angular/core';
 import { provideRouter, withRouterConfig } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { TitleStrategy } from '@angular/router';
 import { routes } from './app.routes';
 import { jwtInterceptor } from './interceptors/jwt.interceptor';
 import { authErrorInterceptor } from './interceptors/auth-error.interceptor';
+import { retryInterceptor } from './interceptors/retry.interceptor';
+import { CobrosTitleStrategy } from './title-strategy';
+import { GlobalErrorHandler } from './global-error-handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
-    provideHttpClient(withInterceptors([jwtInterceptor, authErrorInterceptor])),
+    provideHttpClient(withInterceptors([jwtInterceptor, retryInterceptor, authErrorInterceptor])),
+    { provide: TitleStrategy, useClass: CobrosTitleStrategy },
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
   ],
 };

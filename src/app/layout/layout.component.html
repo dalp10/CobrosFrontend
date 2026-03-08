@@ -1,11 +1,17 @@
 <div class="shell">
-  <nav class="sidebar">
+  <button type="button" class="menu-toggle" (click)="toggleSidebar()" aria-label="Abrir menú">☰</button>
+  <nav class="sidebar" [class.open]="sidebarOpen">
     <div class="logo">Cobros</div>
     <ul class="nav">
       <li><a (click)="nav('dashboard')" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}">Dashboard</a></li>
       <li><a (click)="nav('deudores')" routerLinkActive="active">Deudores</a></li>
       <li><a (click)="nav('prestamos')" routerLinkActive="active">Prestamos</a></li>
       <li><a (click)="nav('pagos')" routerLinkActive="active">Pagos</a></li>
+      @if (auth.currentUser(); as u) {
+        @if (u.rol === 'admin') {
+          <li><a (click)="nav('usuarios')" routerLinkActive="active">Usuarios</a></li>
+        }
+      }
     </ul>
     <div class="footer">
       @if (auth.currentUser(); as u) {

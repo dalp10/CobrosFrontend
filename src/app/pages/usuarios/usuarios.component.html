@@ -3,7 +3,7 @@
     <h1 class="title">Usuarios</h1>
     <button class="btn-new" (click)="openModal()">+ Nuevo usuario</button>
   </div>
-  @if (loading) { <div class="empty">Cargando...</div> }
+  @if (loading) { <app-skeleton [rows]="6" [cells]="6" /> }
   @if (!loading) {
     <div class="twrap">
       <table>
@@ -74,7 +74,7 @@
             <label>Rol</label>
             <select formControlName="rol">
               <option value="admin">Admin</option>
-              <option value="viewer">Solo lectura</option>
+              <option value="usuario">Usuario (solo lectura)</option>
             </select>
           </div>
           @if (editando) {

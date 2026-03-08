@@ -3,10 +3,63 @@
   max-width: 1300px;
 }
 
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.btn-refresh {
+  background: #2e3450;
+  border: 1px solid #3d4363;
+  color: #e8ecf4;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-refresh:hover {
+  background: #3d4363;
+}
+
+.error-box {
+  background: rgba(247, 95, 95, 0.1);
+  border: 1px solid #7f1d1d;
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  color: #fecaca;
+}
+.error-box p { margin-bottom: 16px; }
+.btn-retry {
+  background: #7f1d1d;
+  border: none;
+  color: #fecaca;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-retry:hover { background: #991b1b; }
+
+.empty-state {
+  padding: 40px 24px;
+  text-align: center;
+  color: #7a839e;
+}
+.empty-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; opacity: 0.8; }
+.empty-state p { margin-bottom: 12px; font-size: 0.9rem; }
+.empty-state .dlink { font-size: 0.9rem; }
+
 .title {
   font-size: 1.4rem;
   font-weight: 700;
-  margin-bottom: 20px;
+  margin: 0;
 }
 
 .empty {
@@ -86,6 +139,38 @@
 }
 
 /* ── CHARTS ─────────────────────────────────────── */
+.chart-wrap {
+  position: relative;
+  display: block;
+}
+
+.chart-wrap.donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: #1e2230;
+  border: 1px solid #3d4363;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #e8ecf4;
+  font-family: monospace;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.chart-tooltip .tooltip-pct {
+  color: #7a839e;
+  font-size: 0.75rem;
+  margin-left: 4px;
+}
+
 .chart-canvas {
   width: 100% !important;
   height: 200px !important;
@@ -200,3 +285,29 @@ td {
   color: #7a839e;
   min-width: 28px;
 }
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #2e3450;
+  flex-wrap: wrap;
+}
+.table-footer-info {
+  font-size: 0.8rem;
+  color: #7a839e;
+  margin-right: auto;
+}
+.btn-ver-mas {
+  background: #2e3450;
+  border: 1px solid #3d4363;
+  color: #e8ecf4;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-ver-mas:hover { background: #3d4363; }

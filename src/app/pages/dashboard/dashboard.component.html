@@ -1,37 +1,49 @@
 <div class="page">
-  <h1 class="title">Dashboard</h1>
+  <div class="page-head">
+    <h1 class="title">Dashboard</h1>
+    @if (data && !loading) {
+      <button type="button" class="btn-refresh" (click)="load(true)" title="Actualizar datos" aria-label="Actualizar datos del dashboard">↻ Actualizar</button>
+    }
+  </div>
 
   @if (loading) {
-    <div class="empty">Cargando...</div>
+    <app-dashboard-skeleton />
   }
 
-  @if (data && !loading) {
+  @if (error && !loading) {
+    <div class="error-box">
+      <p>No se pudo cargar el resumen. Revisa la conexión e intenta de nuevo.</p>
+      <button type="button" class="btn-retry" (click)="load()" aria-label="Reintentar cargar el resumen">Reintentar</button>
+    </div>
+  }
+
+  @if (data && !loading && !error) {
 
     <!-- STATS -->
-    <div class="stats">
-      <div class="scard">
-        <span class="sico">💰</span>
+    <div class="stats" role="group" aria-label="Resumen de totales">
+      <div class="scard" aria-label="Total cobrado">
+        <span class="sico" aria-hidden="true">💰</span>
         <div>
           <span class="slbl">Total cobrado</span>
-          <span class="sval green">S/ {{ fmt(data.totales.total_cobrado) }}</span>
+          <span class="sval green">S/ {{ data.totales.total_cobrado | formatNumber }}</span>
         </div>
       </div>
-      <div class="scard">
-        <span class="sico">📤</span>
+      <div class="scard" aria-label="Total prestado">
+        <span class="sico" aria-hidden="true">📤</span>
         <div>
           <span class="slbl">Total prestado</span>
-          <span class="sval blue">S/ {{ fmt(data.totales.total_prestado) }}</span>
+          <span class="sval blue">S/ {{ data.totales.total_prestado | formatNumber }}</span>
         </div>
       </div>
-      <div class="scard">
-        <span class="sico">⏳</span>
+      <div class="scard" aria-label="Pendiente por cobrar">
+        <span class="sico" aria-hidden="true">⏳</span>
         <div>
           <span class="slbl">Pendiente</span>
-          <span class="sval red">S/ {{ fmt(data.totales.total_prestado - data.totales.total_cobrado) }}</span>
+          <span class="sval red">S/ {{ (data.totales.total_prestado - data.totales.total_cobrado) | formatNumber }}</span>
         </div>
       </div>
-      <div class="scard">
-        <span class="sico">👥</span>
+      <div class="scard" aria-label="Deudores activos">
+        <span class="sico" aria-hidden="true">👥</span>
         <div>
           <span class="slbl">Deudores activos</span>
           <span class="sval white">{{ data.porDeudor.length }}</span>
@@ -45,7 +57,14 @@
       <div class="card wide">
         <h2 class="ctitle">Cobros últimos 12 meses</h2>
         @if (data.porMes.length) {
-          <canvas #barChart class="chart-canvas"></canvas>
+          <div class="chart-wrap" (mousemove)="onBarMouseMove($event)" (mouseleave)="onBarMouseLeave()">
+            <canvas #barChart class="chart-canvas" role="img" aria-label="Gráfico de cobros por mes"></canvas>
+            @if (tooltip && tooltip.mes != null) {
+              <div class="chart-tooltip" [style.left.px]="tooltip.x" [style.top.px]="tooltip.y">
+                {{ tooltip.mes }}: {{ formatMonto(tooltip.total) }}
+              </div>
+            }
+          </div>
         } @else {
           <div class="empty-chart">Sin datos de cobros</div>
         }
@@ -55,13 +74,23 @@
       <div class="card narrow">
         <h2 class="ctitle">Por método de pago</h2>
         @if (data.porMetodo.length) {
-          <canvas #donutChart class="donut-canvas"></canvas>
+          <div class="chart-wrap donut-wrap" (mousemove)="onDonutMouseMove($event)" (mouseleave)="onDonutMouseLeave()">
+            <canvas #donutChart class="donut-canvas" role="img" aria-label="Gráfico de cobros por método de pago"></canvas>
+            @if (tooltip && tooltip.metodo != null) {
+              <div class="chart-tooltip" [style.left.px]="tooltip.x" [style.top.px]="tooltip.y">
+                {{ tooltip.metodo }}: {{ formatMonto(tooltip.total) }}
+                @if (tooltip.pct != null) {
+                  <span class="tooltip-pct">({{ tooltip.pct | number:'1.1-1' }}%)</span>
+                }
+              </div>
+            }
+          </div>
           <div class="legend">
             @for (m of data.porMetodo; track m.metodo_pago) {
               <div class="legend-item">
                 <span class="legend-dot" [style.background]="metodoColor(m.metodo_pago)"></span>
                 <span class="legend-lbl">{{ m.metodo_pago }}</span>
-                <span class="legend-val">S/ {{ fmt(m.total) }}</span>
+                <span class="legend-val">S/ {{ m.total | formatNumber }}</span>
               </div>
             }
           </div>
@@ -75,32 +104,39 @@
     <!-- TABLA DEUDORES -->
     <div class="card">
       <h2 class="ctitle">Resumen por deudor</h2>
+      @if (deudoresOrdenados.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">👥</span>
+          <p>Aún no hay deudores con movimientos.</p>
+          <a [routerLink]="['/deudores']" class="dlink">Ir a Deudores</a>
+        </div>
+      } @else {
       <div class="twrap">
         <table>
           <thead>
             <tr>
-              <th>Deudor</th>
-              <th>Cobrado</th>
-              <th>Prestado</th>
-              <th>Pendiente</th>
-              <th>Último pago</th>
-              <th>Avance</th>
+              <th scope="col">Deudor</th>
+              <th scope="col">Cobrado</th>
+              <th scope="col">Prestado</th>
+              <th scope="col">Pendiente</th>
+              <th scope="col">Último pago</th>
+              <th scope="col">Avance</th>
             </tr>
           </thead>
           <tbody>
-            @for (d of data.porDeudor; track d.id) {
+            @for (d of deudoresParaTabla; track d.id) {
               <tr>
                 <td><a [routerLink]="['/deudores', d.id]" class="dlink">{{ d.nombre }}</a></td>
-                <td class="mo green">S/ {{ fmt(d.total_pagado) }}</td>
-                <td class="mo blue">S/ {{ fmt(d.total_prestado) }}</td>
-                <td class="mo red">S/ {{ fmt(d.total_prestado - d.total_pagado) }}</td>
+                <td class="mo green">S/ {{ d.total_pagado | formatNumber }}</td>
+                <td class="mo blue">S/ {{ d.total_prestado | formatNumber }}</td>
+                <td class="mo red">S/ {{ (d.total_prestado - d.total_pagado) | formatNumber }}</td>
                 <td class="mo mu">{{ d.ultimo_pago ? (d.ultimo_pago | date:"dd/MM/yyyy") : '—' }}</td>
                 <td>
                   <div class="prog-row">
                     <div class="pbar">
-                      <div class="pfill" [style.width.%]="pct(d.total_pagado, d.total_prestado)"></div>
+                      <div class="pfill" [style.width.%]="d.total_pagado | formatPercent:d.total_prestado"></div>
                     </div>
-                    <span class="ppct">{{ pct(d.total_pagado, d.total_prestado).toFixed(0) }}%</span>
+                    <span class="ppct">{{ (d.total_pagado | formatPercent:d.total_prestado) | number:'1.0-0' }}%</span>
                   </div>
                 </td>
               </tr>
@@ -108,6 +144,16 @@
           </tbody>
         </table>
       </div>
+      @if (hayMasDeudores) {
+        <div class="table-footer">
+          <span class="table-footer-info">Mostrando {{ deudoresParaTabla.length }} de {{ deudoresOrdenados.length }} deudores</span>
+          <button type="button" class="btn-ver-mas" (click)="verMasDeudores()">
+            Ver {{ cantidadVerMas }} más
+          </button>
+          <a [routerLink]="['/deudores']" class="dlink">Ver todos</a>
+        </div>
+      }
+      }
     </div>
 
   }
