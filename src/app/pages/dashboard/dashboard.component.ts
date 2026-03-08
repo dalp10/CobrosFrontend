@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, OnDestroy, inject, ChangeDetectorRef,
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { PagosService } from '../../services/pagos.service';
+import { PrestamosService } from '../../services/prestamos.service';
 import { NotificationService } from '../../services/notification.service';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
 import { FormatPercentPipe } from '../../shared/pipes/format-percent.pipe';
@@ -20,10 +21,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('donutChart') donutChartRef!: ElementRef<HTMLCanvasElement>;
 
   private pagosService = inject(PagosService);
+  private prestamosService = inject(PrestamosService);
   private cdr = inject(ChangeDetectorRef);
   private notify = inject(NotificationService);
 
   data: ResumenDashboard | null = null;
+  prestamosVencidos = 0;
   loading = true;
   error = false;
   private resizeObserver: ResizeObserver | null = null;
@@ -38,6 +41,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   load(forceRefresh = false): void {
     this.loading = true;
     this.error = false;
+    this.prestamosService.getAll().subscribe(prestamos => {
+      this.prestamosVencidos = prestamos.filter(p => p.estado === 'vencido').length;
+      this.cdr.detectChanges();
+    });
     this.pagosService.getResumen(forceRefresh).subscribe({
       next: (r) => {
         this.data = r;

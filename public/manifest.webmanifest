@@ -1,0 +1,19 @@
+{
+  "name": "Cobros",
+  "short_name": "Cobros",
+  "description": "Sistema de cobros, deudores y pagos",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#161920",
+  "background_color": "#0d0f14",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}

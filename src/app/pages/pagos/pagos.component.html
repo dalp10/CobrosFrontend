@@ -8,6 +8,15 @@
 
   <form [formGroup]="filters" (ngSubmit)="buscar()" class="filtros">
     <div class="filtro-group">
+      <label class="filtro-lbl">Deudor</label>
+      <select formControlName="deudor_id" aria-label="Filtrar por deudor">
+        <option value="">Todos</option>
+        @for (d of deudores; track d.id) {
+          <option [value]="d.id">{{ d.nombre }} {{ d.apellidos || '' }}</option>
+        }
+      </select>
+    </div>
+    <div class="filtro-group">
       <label class="filtro-lbl">Desde</label>
       <input type="date" formControlName="desde" aria-label="Fecha desde">
     </div>
@@ -27,9 +36,9 @@
       </select>
     </div>
     <div class="filtro-actions">
-      <button type="submit" class="btn btn-filtrar">Filtrar</button>
-      <button type="button" class="btn btn-excel" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
-      <button type="button" class="btn-clr" (click)="limpiar()">Limpiar</button>
+      <button type="submit" class="btn btn-filtrar" aria-label="Aplicar filtros">Filtrar</button>
+      <button type="button" class="btn btn-excel" (click)="exportExcel()" aria-label="Exportar pagos a Excel">📊 Excel</button>
+      <button type="button" class="btn-clr" (click)="limpiar()" aria-label="Limpiar filtros">Limpiar</button>
     </div>
   </form>
 
@@ -50,16 +59,16 @@
         <thead>
           <tr>
             <th scope="col">#</th>
-            <th scope="col">Fecha</th>
-            <th scope="col">Deudor</th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('fecha')" [attr.aria-sort]="sortBy === 'fecha' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Fecha {{ sortBy === 'fecha' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('deudor')" [attr.aria-sort]="sortBy === 'deudor' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Deudor {{ sortBy === 'deudor' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
             <th scope="col">Concepto</th>
-            <th scope="col">Monto</th>
-            <th scope="col">Método</th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('monto')" [attr.aria-sort]="sortBy === 'monto' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Monto {{ sortBy === 'monto' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('metodo')" [attr.aria-sort]="sortBy === 'metodo' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Método {{ sortBy === 'metodo' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
             <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
-          @for (p of pagos; track p.id; let i = $index) {
+          @for (p of pagosOrdenados; track p.id; let i = $index) {
             <tr>
               <td class="mu">{{ i + 1 }}</td>
               <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
@@ -79,14 +88,22 @@
         </tbody>
       </table>
     </div>
+    @if (hayMasPagos) {
+      <div class="load-more-wrap">
+        <button type="button" class="btn btn-load-more" (click)="cargarMas()" [disabled]="loadingMore" aria-label="Cargar más pagos">
+          {{ loadingMore ? 'Cargando…' : 'Ver más (' + cantidadVerMas + ')' }}
+        </button>
+      </div>
+    }
   }
 
   @if (!loading && !pagos.length) {
     <div class="empty">
-      <span class="empty-icon">💳</span>
-      <p>Sin pagos que coincidan con el filtro.</p>
-      <p class="empty-hint">Ajusta las fechas o el método, o registra pagos desde el detalle de un deudor.</p>
-      <a [routerLink]="['/deudores']" class="btn-link">Ir a Deudores</a>
+      <span class="empty-icon" aria-hidden="true">💳</span>
+      <p class="empty-title">No hay pagos que coincidan con el filtro</p>
+      <p class="empty-hint">Ajusta las fechas, el método o el deudor. También puedes registrar pagos desde el detalle de un deudor.</p>
+      <button type="button" class="btn-link" (click)="limpiar()">Limpiar filtros</button>
+      <a [routerLink]="['/deudores']" class="btn-link btn-link-sec">Ir a Deudores</a>
     </div>
   }
 </div>

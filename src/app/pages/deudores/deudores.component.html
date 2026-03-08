@@ -48,9 +48,16 @@
   }
 
   <div class="search-wrap">
-    <span class="search-icon" aria-hidden="true">🔍</span>
-    <input class="search" type="text" placeholder="Buscar por nombre, apellido o DNI..."
-      [(ngModel)]="searchTerm" (input)="filtrar()" [ngModelOptions]="{standalone: true}">
+    <div class="search-inner">
+      <span class="search-icon" aria-hidden="true">🔍</span>
+      <input class="search" type="text" placeholder="Buscar por nombre, apellido o DNI..."
+        [(ngModel)]="searchTerm" (input)="filtrar()" [ngModelOptions]="{standalone: true}">
+    </div>
+    <select class="filtro-estado" [(ngModel)]="filtroEstado" (ngModelChange)="filtrar()" [ngModelOptions]="{standalone: true}" aria-label="Filtrar por estado">
+      <option value="todos">Todos</option>
+      <option value="al_dia">Al día</option>
+      <option value="en_mora">En mora</option>
+    </select>
   </div>
 
   @if (loading) { <app-skeleton [rows]="6" [cells]="3" /> }
@@ -74,6 +81,7 @@
             <div class="avatar">{{ d.nombre[0] }}{{ d.apellidos[0] }}</div>
             <div class="cinfo">
               <a [routerLink]="['/deudores', d.id]" class="name">{{ d.nombre }} {{ d.apellidos }}</a>
+              @if (d.notas?.trim()) { <span class="has-notas" title="Tiene notas">📝</span> }
               @if (d.dni) { <div class="sub">DNI {{ d.dni }}</div> }
               @if (d.telefono) { <div class="sub">{{ d.telefono }}</div> }
             </div>

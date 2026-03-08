@@ -35,7 +35,7 @@ h1 {
   color: #e8ecf4;
 }
 
-.btn-pdf, .btn-excel {
+.btn-pdf, .btn-excel, .btn-wa {
   border-radius: 8px;
   padding: 6px 14px;
   font-size: .75rem;
@@ -44,8 +44,16 @@ h1 {
   font-family: inherit;
   transition: opacity .2s, transform .15s;
 }
-.btn-pdf:hover, .btn-excel:hover { opacity: .9; }
-.btn-pdf:active, .btn-excel:active { transform: scale(0.98); }
+.btn-pdf:hover, .btn-excel:hover, .btn-wa:hover { opacity: .9; }
+.btn-pdf:active, .btn-excel:active, .btn-wa:active { transform: scale(0.98); }
+
+.btn-wa {
+  background: rgba(37, 211, 102, .2);
+  color: #25D366;
+  border: 1px solid rgba(37, 211, 102, .5);
+}
+.btn-wa:hover { background: rgba(37, 211, 102, .3); }
+.btn-wa:disabled { opacity: .6; cursor: not-allowed; }
 
 .btn-pdf {
   background: rgba(247, 95, 95, .15);
@@ -77,6 +85,17 @@ h1 {
 }
 .tag.g { color: #22d3a0; border-color: rgba(34, 211, 160, .4); background: rgba(34, 211, 160, .08); }
 .tag.r { color: #f75f5f; border-color: rgba(247, 95, 95, .4); background: rgba(247, 95, 95, .08); }
+
+.notas-deudor {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 10px;
+  font-size: .85rem;
+}
+.notas-lbl { font-weight: 600; color: #7a839e; margin-right: 8px; }
+.notas-txt { color: #c4cad8; }
 
 /* ── SECTION HEADERS ─────────────────────────────── */
 .sec-head {
@@ -145,6 +164,19 @@ h1 {
 
 .lcard-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
 
+.lcard-head-right { display: flex; align-items: center; gap: 8px; }
+.btn-edit-prestamo {
+  background: none;
+  border: 1px solid #2e3450;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: .85rem;
+  cursor: pointer;
+  opacity: .8;
+  transition: border-color .15s, background .15s;
+}
+.btn-edit-prestamo:hover { opacity: 1; border-color: #4f8ef7; background: rgba(79, 142, 247, .1); }
+
 .ltype { font-size: .65rem; color: #7a839e; text-transform: uppercase; font-weight: 600; letter-spacing: .5px; }
 
 .ldesc { font-size: .85rem; font-weight: 600; color: #e8ecf4; }
@@ -153,6 +185,32 @@ h1 {
 
 .lmeta { display: flex; gap: 6px; flex-wrap: wrap; }
 
+.lcard-notas {
+  font-size: .8rem;
+  color: #a0a8c0;
+  margin: 6px 0;
+  padding: 6px 0;
+  border-top: 1px solid rgba(46, 52, 80, .5);
+  line-height: 1.35;
+}
+
+.btn-cronograma {
+  margin-top: auto;
+  padding: 10px 14px;
+  font-size: .85rem;
+  font-weight: 600;
+  background: rgba(79, 142, 247, .15);
+  border: 1px solid #4f8ef7;
+  color: #4f8ef7;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .2s, color .2s, border-color .2s;
+  width: 100%;
+  text-align: center;
+}
+.btn-cronograma:hover { background: rgba(79, 142, 247, .25); color: #7ab0ff; border-color: #7ab0ff; }
+
 .tsm { font-size: .63rem; padding: 3px 8px; border-radius: 8px; background: rgba(46, 52, 80, .4); border: 1px solid #2e3450; color: #7a839e; }
 
 .est { font-size: .63rem; padding: 3px 8px; border-radius: 8px; font-weight: 600; }
@@ -160,6 +218,8 @@ h1 {
 .e-pagado   { background: rgba(34, 211, 160, .15); color: #22d3a0; }
 .e-vencido  { background: rgba(247, 95, 95, .15); color: #f75f5f; }
 .e-cancelado { background: rgba(122, 131, 158, .15); color: #7a839e; }
+.e-pendiente { background: rgba(247, 201, 72, .15); color: #f7c948; }
+.e-parcial   { background: rgba(247, 135, 79, .15); color: #f7874f; }
 
 /* Empty state préstamos */
 .empty {
@@ -409,6 +469,32 @@ select option { background: #1e2230; }
 .close-btn:hover { color: #f75f5f; }
 
 .mfooter { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
+
+.modal-cronograma .twrap { margin: 0 0 16px; max-height: 60vh; overflow-y: auto; }
+
+.cronograma-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 10px;
+  font-size: .85rem;
+}
+.cr-item { color: #a0a8c0; }
+.cr-item strong { font-family: monospace; }
+.cr-green { color: #22d3a0; }
+.cr-red { color: #f75f5f; }
+
+.cronograma-loading, .cronograma-empty {
+  padding: 24px;
+  text-align: center;
+  color: #7a839e;
+  font-size: .88rem;
+}
+.cronograma-empty { background: #1e2230; border: 1px dashed #2e3450; border-radius: 10px; }
 
 .btn-cancel {
   background: none;

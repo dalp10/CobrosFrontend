@@ -1,0 +1,229 @@
+.page {
+  padding: 24px;
+  max-width: 900px;
+}
+
+.page-head {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: #e8ecf4;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: #7a839e;
+  margin: 0;
+}
+
+.loading-msg {
+  padding: 24px;
+  text-align: center;
+  color: #7a839e;
+}
+
+.empty {
+  padding: 40px 24px;
+  text-align: center;
+  background: #1e2230;
+  border: 1px dashed #2e3450;
+  border-radius: 14px;
+}
+
+.empty-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; opacity: .85; }
+.empty-title { font-weight: 700; font-size: 1rem; color: #e8ecf4; margin: 0 0 8px 0; }
+.empty-hint { font-size: .88rem; color: #7a839e; margin: 0; }
+
+.sec {
+  margin-bottom: 28px;
+}
+
+.sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2e3450;
+}
+
+.sec-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  color: #e8ecf4;
+}
+
+.dias-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .85rem;
+  color: #7a839e;
+}
+
+.dias-sel {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 8px;
+  color: #e8ecf4;
+  padding: 8px 12px;
+  font-size: .85rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn-link {
+  display: inline-block;
+  background: linear-gradient(135deg, #4f8ef7, #7c5cfc);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: .82rem;
+  font-weight: 600;
+  text-decoration: none;
+  font-family: inherit;
+  transition: box-shadow .2s;
+}
+.btn-link:hover { box-shadow: 0 4px 14px rgba(79, 142, 247, .35); }
+
+.alerta-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.alerta-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(46, 52, 80, .5);
+  transition: background .15s;
+}
+.alerta-item:last-child { border-bottom: none; }
+.alerta-item:hover { background: rgba(46, 52, 80, .2); }
+
+.alerta-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f8ef7, #7c5cfc);
+  color: #fff;
+  font-weight: 700;
+  font-size: .9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.alerta-avatar.prestamo {
+  background: linear-gradient(135deg, #f75f5f, #f7874f);
+}
+
+.alerta-info { flex: 1; min-width: 0; }
+
+.alerta-name {
+  display: block;
+  font-weight: 600;
+  color: #e8ecf4;
+  text-decoration: none;
+  font-size: .95rem;
+  margin-bottom: 2px;
+}
+.alerta-name:hover { color: #4f8ef7; text-decoration: underline; }
+
+.alerta-meta {
+  font-size: .8rem;
+  color: #7a839e;
+}
+
+.alerta-pendiente {
+  font-weight: 700;
+  font-family: monospace;
+  color: #f75f5f;
+  font-size: .9rem;
+}
+
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #25D366;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: .8rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .2s, transform .1s;
+}
+.btn-whatsapp:hover {
+  background: #20bd5a;
+  color: #fff;
+  transform: scale(1.02);
+}
+.btn-whatsapp.disabled {
+  background: #2e3450;
+  color: #5a6178;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.alerta-wa-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.btn-whatsapp.btn-enviar {
+  background: #128C7E;
+}
+.btn-whatsapp.btn-enviar:hover { background: #0e7569; }
+.btn-whatsapp.btn-enviar:disabled {
+  background: #2e3450;
+  color: #5a6178;
+  cursor: not-allowed;
+}
+.btn-whatsapp.btn-abrir {
+  background: #25D366;
+  font-size: .75rem;
+  padding: 6px 10px;
+}
+.btn-whatsapp.btn-abrir:hover { background: #20bd5a; }
+
+.alerta-badge {
+  font-size: .7rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.alerta-badge.vencido {
+  background: rgba(247, 95, 95, .2);
+  color: #f75f5f;
+}
+
+.sec-empty {
+  padding: 20px;
+  text-align: center;
+  color: #7a839e;
+  font-size: .88rem;
+  background: #1e2230;
+  border: 1px dashed #2e3450;
+  border-radius: 12px;
+  margin: 0;
+}

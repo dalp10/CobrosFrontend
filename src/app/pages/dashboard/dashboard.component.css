@@ -110,6 +110,16 @@
 .red   { color: #f75f5f; }
 .white { color: #e8ecf4; }
 
+.scard-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.scard-link:hover { background: #252b3d; border-color: #3d4363; }
+.scard-link.has-alert { border-color: rgba(247, 95, 95, .4); }
+.scard-link.has-alert:hover { border-color: #f75f5f; }
+
 /* ── CHARTS ROW ─────────────────────────────────── */
 .row2 {
   display: grid;

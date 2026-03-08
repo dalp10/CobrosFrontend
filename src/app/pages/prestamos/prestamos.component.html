@@ -6,13 +6,38 @@
     }
   </header>
 
+  @if (!loading && prestamos.length) {
+    <div class="filtros-wrap">
+      <div class="search-inner">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input class="search" type="text" placeholder="Buscar por deudor o descripción..."
+          [(ngModel)]="searchTerm" (input)="filtrar()" aria-label="Buscar préstamos">
+      </div>
+      <select class="filtro-sel" [(ngModel)]="filtroEstado" (ngModelChange)="filtrar()" aria-label="Filtrar por estado">
+        <option value="todos">Todos los estados</option>
+        <option value="activo">Activo</option>
+        <option value="vencido">Vencido</option>
+        <option value="pagado">Pagado</option>
+        <option value="cancelado">Cancelado</option>
+      </select>
+      <select class="filtro-sel" [(ngModel)]="filtroTipo" (ngModelChange)="filtrar()" aria-label="Filtrar por tipo">
+        <option value="">Todos los tipos</option>
+        <option value="prestamo_personal">Personal</option>
+        <option value="prestamo_bancario">Bancario</option>
+        <option value="pandero">Pandero</option>
+        <option value="otro">Otro</option>
+      </select>
+      <button type="button" class="btn-excel" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
+    </div>
+  }
+
   @if (loading) {
     <app-skeleton [rows]="8" [cells]="7" />
   }
 
   @if (!loading && prestamos.length) {
     <div class="totbar">
-      <span>{{ prestamos.length }} préstamo{{ prestamos.length !== 1 ? 's' : '' }}</span>
+      <span>{{ filtered.length }} préstamo{{ filtered.length !== 1 ? 's' : '' }}</span>
       <span class="tot-label">Monto total: <strong class="tot-val">S/ {{ totalMontoOriginal | formatNumber }}</strong></span>
       <span class="tot-label">Pendiente: <strong class="tot-pend">S/ {{ totalPendiente | formatNumber }}</strong></span>
     </div>
@@ -23,17 +48,17 @@
       <table>
         <thead>
           <tr>
-            <th scope="col">Deudor</th>
-            <th scope="col">Tipo</th>
-            <th scope="col">Monto</th>
-            <th scope="col">Cobrado</th>
-            <th scope="col">Pendiente</th>
-            <th scope="col">Inicio</th>
-            <th scope="col">Estado</th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('deudor')" [attr.aria-sort]="sortBy === 'deudor' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Deudor {{ sortBy === 'deudor' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('tipo')" [attr.aria-sort]="sortBy === 'tipo' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Tipo {{ sortBy === 'tipo' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('monto')" [attr.aria-sort]="sortBy === 'monto' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Monto {{ sortBy === 'monto' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('cobrado')" [attr.aria-sort]="sortBy === 'cobrado' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Cobrado {{ sortBy === 'cobrado' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('pendiente')" [attr.aria-sort]="sortBy === 'pendiente' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Pendiente {{ sortBy === 'pendiente' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('inicio')" [attr.aria-sort]="sortBy === 'inicio' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Inicio {{ sortBy === 'inicio' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+            <th scope="col"><button type="button" class="th-sort" (click)="setSort('estado')" [attr.aria-sort]="sortBy === 'estado' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Estado {{ sortBy === 'estado' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
           </tr>
         </thead>
         <tbody>
-          @for (p of prestamos; track p.id) {
+          @for (p of prestamosParaMostrar; track p.id) {
             <tr>
               <td><a [routerLink]="['/deudores', p.deudor_id]" class="dlink">{{ p.deudor_nombre }}</a></td>
               <td><span class="tipo">{{ p.tipo }}</span></td>
@@ -47,14 +72,29 @@
         </tbody>
       </table>
     </div>
+    @if (hayMasPrestamos) {
+      <div class="load-more-wrap">
+        <button type="button" class="btn-load-more" (click)="verMasPrestamos()" aria-label="Cargar más préstamos">
+          Ver más ({{ cantidadVerMas }})
+        </button>
+      </div>
+    }
   }
 
   @if (!loading && !prestamos.length) {
     <div class="empty">
       <span class="empty-icon" aria-hidden="true">📋</span>
-      <p>Sin préstamos registrados.</p>
-      <p class="empty-hint">Los préstamos se crean desde el detalle de cada deudor.</p>
+      <p class="empty-title">No hay préstamos aún</p>
+      <p class="empty-hint">Los préstamos se crean desde el detalle de cada deudor. Agrega un deudor y luego crea su primer préstamo.</p>
       <a [routerLink]="['/deudores']" class="btn-link" aria-label="Ir a la lista de deudores">Ir a Deudores</a>
+    </div>
+  }
+
+  @if (!loading && prestamos.length && !filtered.length) {
+    <div class="empty">
+      <span class="empty-icon" aria-hidden="true">🔍</span>
+      <p class="empty-title">Ningún préstamo coincide con el filtro</p>
+      <p class="empty-hint">Prueba otro término de búsqueda o cambia estado/tipo.</p>
     </div>
   }
 </div>

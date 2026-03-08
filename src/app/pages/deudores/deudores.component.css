@@ -148,6 +148,19 @@
 .search-wrap {
   position: relative;
   margin-bottom: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-wrap .search {
+  flex: 1;
+}
+
+.search-inner {
+  position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .search-icon {
@@ -177,6 +190,19 @@
 .search:focus {
   border-color: #4f8ef7;
   box-shadow: 0 0 0 3px rgba(79, 142, 247, .15);
+}
+
+.filtro-estado {
+  flex-shrink: 0;
+  width: 130px;
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 10px;
+  color: #e8ecf4;
+  padding: 10px 12px;
+  font-size: .85rem;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .empty {
@@ -279,6 +305,8 @@
   display: block;
 }
 .name:hover { color: #4f8ef7; }
+
+.has-notas { font-size: .75rem; opacity: .8; margin-left: 4px; vertical-align: middle; }
 
 .sub {
   font-size: .68rem;

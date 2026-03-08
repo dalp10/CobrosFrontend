@@ -52,6 +52,21 @@
   background: rgba(79, 142, 247, 0.08);
 }
 
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  background: #f75f5f;
+  border-radius: 9px;
+}
+
 .footer {
   padding: 16px 20px;
   border-top: 1px solid #2e3450;

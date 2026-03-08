@@ -7,12 +7,13 @@ import { DeudoresService } from '../../services/deudores.service';
 import { PagosService } from '../../services/pagos.service';
 import { PrestamosService } from '../../services/prestamos.service';
 import { NotificationService } from '../../services/notification.service';
+import { AlertasService } from '../../services/alertas.service';
 import { ExportService } from '../../services/export.service';
 import { OcrComprobanteService } from '../../services/ocr-comprobante.service';
 import { ImagePreviewButtonComponent } from '../../shared/image-preview-button/image-preview-button.component';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
-import { Deudor, Pago, Prestamo } from '../../models/index';
+import { Deudor, Pago, Prestamo, Cuota } from '../../models/index';
 
 @Component({
   selector: 'app-deudor-detail',
@@ -29,6 +30,7 @@ export class DeudorDetailComponent implements OnInit {
   private fb = inject(FormBuilder);
   cdr = inject(ChangeDetectorRef);
   private notify = inject(NotificationService);
+  private alertasService = inject(AlertasService);
   private exportService = inject(ExportService);
   private ocrService = inject(OcrComprobanteService);
 
@@ -46,6 +48,39 @@ export class DeudorDetailComponent implements OnInit {
   editImagenFile: File | null = null; editImagenPreview: string | null = null; editImagenError = ''; editRemoveImage = false;
   ocrEditLoading = false;
   deletePago: Pago | null = null; deleting = false;
+
+  cronogramaPrestamo: Prestamo | null = null;
+  cuotasCronograma: Cuota[] = [];
+  loadingCuotas = false;
+
+  editPrestamo: Prestamo | null = null;
+  editPrestamoForm = this.fb.group({ estado: [''], notas: [''] });
+  editPrestamoErr = '';
+  savingEditPrestamo = false;
+
+  exporting = false;
+  enviandoWhatsApp = false;
+
+  /** Cobrado: suma de pagos del deudor; si no hay array, usa el valor del API */
+  get totalCobrado(): number {
+    const d = this.deudor;
+    if (!d) return 0;
+    if (d.pagos?.length) return d.pagos.reduce((s, p) => s + +(p.monto ?? 0), 0);
+    return +(d.total_pagado ?? 0);
+  }
+
+  /** Total prestado: suma de montos originales de préstamos; si no hay array, usa el valor del API */
+  get totalPrestado(): number {
+    const d = this.deudor;
+    if (!d) return 0;
+    if (d.prestamos?.length) return d.prestamos.reduce((s, p) => s + +(p.monto_original ?? 0), 0);
+    return +(d.total_prestado ?? 0);
+  }
+
+  /** Saldo pendiente: total prestado - cobrado */
+  get saldoPendiente(): number {
+    return this.totalPrestado - this.totalCobrado;
+  }
 
   pagoForm = this.fb.group({
     prestamo_id: [null],
@@ -77,7 +112,19 @@ export class DeudorDetailComponent implements OnInit {
     this.loading = true;
     const id = +this.route.snapshot.params['id'];
     this.deudoresService.getById(id).subscribe({
-      next: (d) => { this.deudor = d; this.loading = false; this.cdr.detectChanges(); },
+      next: (d) => {
+        this.deudor = d;
+        let pending = 2;
+        const done = () => { pending--; if (pending === 0) { this.loading = false; this.cdr.detectChanges(); } };
+        this.pagosService.getAll({ deudor_id: id, limit: 2000 }).subscribe({
+          next: (r) => { if (this.deudor) this.deudor = { ...this.deudor, pagos: r.data || [] }; done(); this.cdr.detectChanges(); },
+          error: () => done()
+        });
+        this.prestamosService.getAll(id).subscribe({
+          next: (prestamos) => { if (this.deudor) this.deudor = { ...this.deudor, prestamos: prestamos || [] }; done(); this.cdr.detectChanges(); },
+          error: () => done()
+        });
+      },
       error: () => { this.loading = false; this.cdr.detectChanges(); }
     });
   }
@@ -108,6 +155,8 @@ export class DeudorDetailComponent implements OnInit {
     if (this.imgModal) { this.imgModal = null; this.cdr.detectChanges(); }
     else if (this.editPago) this.cerrarEditPago();
     else if (this.deletePago) { this.deletePago = null; this.cdr.detectChanges(); }
+    else if (this.cronogramaPrestamo) this.cerrarCronograma();
+    else if (this.editPrestamo) this.cerrarEditarPrestamo();
   }
 
   onEditFileChange(e: any): void { const f = e.target.files?.[0]; if (f) this.validateAndSetEditFile(f); }
@@ -156,6 +205,72 @@ export class DeudorDetailComponent implements OnInit {
     this.pagosService.delete(this.deletePago.id).subscribe({
       next: () => { this.deleting = false; this.deletePago = null; this.load(); this.notify.success('Pago eliminado'); },
       error: () => { this.deleting = false; this.cdr.detectChanges(); this.notify.error('No se pudo eliminar el pago'); }
+    });
+  }
+
+  abrirCronograma(p: Prestamo): void {
+    this.cronogramaPrestamo = p;
+    this.cuotasCronograma = [];
+    this.loadingCuotas = true;
+    this.cdr.detectChanges();
+    this.prestamosService.getCuotas(p.id).subscribe({
+      next: (res) => {
+        const cuotas = Array.isArray(res) ? res : (res as any)?.data ?? [];
+        this.cuotasCronograma = cuotas;
+        this.loadingCuotas = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.loadingCuotas = false; this.cdr.detectChanges(); this.notify.error('No se pudieron cargar las cuotas'); }
+    });
+  }
+
+  cerrarCronograma(): void {
+    this.cronogramaPrestamo = null;
+    this.cuotasCronograma = [];
+    this.cdr.detectChanges();
+  }
+
+  get cronogramaTotalEsperado(): number {
+    return this.cuotasCronograma.reduce((s, c) => s + +(c.monto_esperado ?? 0), 0);
+  }
+  get cronogramaTotalPagado(): number {
+    return this.cuotasCronograma.reduce((s, c) => s + +(c.monto_pagado ?? 0), 0);
+  }
+  get cronogramaPendiente(): number {
+    return this.cronogramaTotalEsperado - this.cronogramaTotalPagado;
+  }
+
+  abrirEditarPrestamo(p: Prestamo): void {
+    this.editPrestamo = p;
+    this.editPrestamoErr = '';
+    this.editPrestamoForm.setValue({ estado: p.estado || 'activo', notas: p.notas || '' });
+    this.cdr.detectChanges();
+  }
+
+  cerrarEditarPrestamo(): void {
+    this.editPrestamo = null;
+    this.cdr.detectChanges();
+  }
+
+  guardarEditarPrestamo(): void {
+    if (!this.editPrestamo) return;
+    const v = this.editPrestamoForm.value as { estado?: string; notas?: string };
+    const estado = (v.estado === 'activo' || v.estado === 'vencido' || v.estado === 'pagado' || v.estado === 'cancelado')
+      ? v.estado : 'activo';
+    this.savingEditPrestamo = true;
+    this.editPrestamoErr = '';
+    this.prestamosService.update(this.editPrestamo.id, { estado, notas: v.notas || undefined }).subscribe({
+      next: () => {
+        this.savingEditPrestamo = false;
+        this.editPrestamo = null;
+        this.load();
+        this.notify.success('Préstamo actualizado');
+      },
+      error: (e) => {
+        this.savingEditPrestamo = false;
+        this.editPrestamoErr = e.error?.error || e.error?.message || 'No se pudo actualizar';
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -277,30 +392,87 @@ export class DeudorDetailComponent implements OnInit {
     });
   }
 
+  enviarRecordatorioWhatsApp(): void {
+    if (!this.deudor) return;
+    if (!this.deudor.telefono) {
+      this.notify.error('Este deudor no tiene teléfono registrado.');
+      return;
+    }
+    this.enviandoWhatsApp = true;
+    this.cdr.detectChanges();
+    const saldo = this.saldoPendiente;
+    const titulo = '📋 *Recordatorio de cobro*\n\n';
+    const mensaje = saldo > 0
+      ? titulo + `Hola ${this.deudor.nombre}, le recordamos que tiene un saldo pendiente de S/ ${saldo.toLocaleString('es-PE', { minimumFractionDigits: 2 })}. ¿Podría regularizar? Gracias.`
+      : undefined;
+    this.alertasService.enviarWhatsApp({ deudor_id: this.deudor.id, mensaje }).subscribe({
+      next: () => {
+        this.enviandoWhatsApp = false;
+        this.cdr.detectChanges();
+        this.notify.success('Mensaje enviado por WhatsApp');
+      },
+      error: (err) => {
+        this.enviandoWhatsApp = false;
+        this.cdr.detectChanges();
+        this.notify.error(err.error?.error || 'No se pudo enviar el mensaje');
+      }
+    });
+  }
+
   exportExcel(): void {
-    if (!this.deudor?.pagos) return;
-    const rows: (string | number)[][] = [
-      ['#', 'Fecha', 'Concepto', 'Monto', 'Metodo', 'N Operacion'],
-      ...this.deudor.pagos.map((p, i) => [i + 1, p.fecha_pago ? p.fecha_pago.split('T')[0] : '', p.concepto || '', +p.monto, p.metodo_pago, p.numero_operacion || ''])
-    ];
-    const total = this.deudor.pagos.reduce((s, p) => s + +p.monto, 0);
-    rows.push(['', '', 'TOTAL', total, '', '']);
-    this.exportService.downloadCsv(rows, 'pagos_' + this.deudor.nombre + '_' + this.deudor.apellidos + '.csv');
+    if (!this.deudor) return;
+    const id = this.deudor.id;
+    this.exporting = true;
+    this.pagosService.getAll({ deudor_id: id, limit: 2000 }).subscribe({
+      next: (r) => {
+        this.exporting = false;
+        this.cdr.detectChanges();
+        const pagos = r.data || [];
+        const baseUrl = environment.apiUrl.replace(/\/api$/, '');
+        const rows: (string | number)[][] = [
+          ['#', 'Fecha', 'Concepto', 'Monto', 'Método', 'N.º Operación', 'Comprobante (enlace)'],
+          ...pagos.map((p, i) => [
+            i + 1,
+            p.fecha_pago ? p.fecha_pago.split('T')[0] : '',
+            p.concepto || '',
+            +p.monto,
+            p.metodo_pago,
+            p.numero_operacion || '',
+            p.imagen_url ? (p.imagen_url.startsWith('http') ? p.imagen_url : baseUrl + p.imagen_url) : ''
+          ])
+        ];
+        const total = pagos.reduce((s, p) => s + +p.monto, 0);
+        rows.push(['', '', 'TOTAL', total, '', '', '']);
+        this.exportService.downloadCsv(rows, 'pagos_' + this.deudor!.nombre + '_' + this.deudor!.apellidos + '.csv');
+        this.notify.success('Exportado ' + pagos.length + ' pago(s)');
+      },
+      error: () => { this.exporting = false; this.notify.error('No se pudieron cargar los pagos para exportar'); this.cdr.detectChanges(); }
+    });
   }
 
   exportPDF(): void {
     if (!this.deudor) return;
-    const d = this.deudor;
-    const now = new Date().toLocaleDateString('es-PE');
-    const pagos = d.pagos ?? [];
-    const prestamos = d.prestamos ?? [];
-    const pagosRows = pagos.map((p, i) => `<tr><td>${i+1}</td><td>${p.fecha_pago ? p.fecha_pago.split('T')[0] : ''}</td><td>${p.concepto || '-'}</td><td style="text-align:right">S/ ${(+(p.monto||0)).toLocaleString('es-PE',{minimumFractionDigits:2})}</td><td>${p.metodo_pago}</td><td>${p.numero_operacion || '-'}</td></tr>`).join('');
-    const total = pagos.reduce((s, p) => s + +p.monto, 0);
-    const prestamosRows = prestamos.map((p) => `<tr><td>${p.tipo}</td><td>${p.descripcion || '-'}</td><td style="text-align:right">S/ ${(+(p.monto_original||0)).toLocaleString('es-PE',{minimumFractionDigits:2})}</td><td>${p.estado}</td><td>${p.fecha_inicio ? p.fecha_inicio.split('T')[0] : ''}</td></tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reporte - ${d.nombre} ${d.apellidos}</title>
-    <style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:20px}h1{font-size:16px;margin-bottom:4px}.sub{color:#666;margin-bottom:16px;font-size:10px}.info{display:flex;gap:20px;margin-bottom:16px;background:#f5f5f5;padding:12px;border-radius:4px}.info-item{display:flex;flex-direction:column}.info-label{font-size:9px;color:#888;text-transform:uppercase}.info-val{font-size:13px;font-weight:bold}.green{color:#16a34a}.red{color:#dc2626}h2{font-size:12px;margin:16px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px}th{background:#f5f5f5;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:9px}td{padding:5px 8px;border:1px solid #eee}tr:nth-child(even){background:#fafafa}.total-row{font-weight:bold;background:#f0f0f0}.footer{margin-top:20px;font-size:9px;color:#999;text-align:center}</style>
+    const id = this.deudor.id;
+    this.exporting = true;
+    this.pagosService.getAll({ deudor_id: id, limit: 2000 }).subscribe({
+      next: (r) => {
+        this.exporting = false;
+        this.cdr.detectChanges();
+        const pagos = r.data || [];
+        const d = this.deudor!;
+        const baseUrl = environment.apiUrl.replace(/\/api$/, '');
+        const now = new Date().toLocaleDateString('es-PE');
+        const prestamos = d.prestamos ?? [];
+        const prestamosRows = prestamos.map((p) => `<tr><td>${p.tipo}</td><td>${p.descripcion || '-'}</td><td style="text-align:right">S/ ${(+(p.monto_original||0)).toLocaleString('es-PE',{minimumFractionDigits:2})}</td><td>${p.estado}</td><td>${p.fecha_inicio ? p.fecha_inicio.split('T')[0] : ''}</td></tr>`).join('');
+        const pagosRows = pagos.map((p, i) => {
+          const linkComp = p.imagen_url ? `<a href="${p.imagen_url.startsWith('http') ? p.imagen_url : baseUrl + p.imagen_url}" target="_blank" rel="noopener">Ver comprobante</a>` : '-';
+          return `<tr><td>${i+1}</td><td>${p.fecha_pago ? p.fecha_pago.split('T')[0] : ''}</td><td>${p.concepto || '-'}</td><td style="text-align:right">S/ ${(+(p.monto||0)).toLocaleString('es-PE',{minimumFractionDigits:2})}</td><td>${p.metodo_pago}</td><td>${p.numero_operacion || '-'}</td><td>${linkComp}</td></tr>`;
+        }).join('');
+        const total = pagos.reduce((s, p) => s + +p.monto, 0);
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reporte - ${d.nombre} ${d.apellidos}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:11px;color:#222;padding:20px}h1{font-size:16px;margin-bottom:4px}.sub{color:#666;margin-bottom:16px;font-size:10px}.info{display:flex;gap:20px;margin-bottom:16px;background:#f5f5f5;padding:12px;border-radius:4px}.info-item{display:flex;flex-direction:column}.info-label{font-size:9px;color:#888;text-transform:uppercase}.info-val{font-size:13px;font-weight:bold}.green{color:#16a34a}.red{color:#dc2626}h2{font-size:12px;margin:16px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px}th{background:#f5f5f5;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:9px}td{padding:5px 8px;border:1px solid #eee}tr:nth-child(even){background:#fafafa}.total-row{font-weight:bold;background:#f0f0f0}.footer{margin-top:20px;font-size:9px;color:#999;text-align:center} a{color:#2563eb}</style>
     </head><body>
-    <h1>Reporte de Cobros</h1><div class="sub">Generado el ${now}</div>
+    <h1>Reporte de Cobros</h1><div class="sub">Generado el ${now} — ${pagos.length} pago(s)</div>
     <div class="info">
       <div class="info-item"><span class="info-label">Deudor</span><span class="info-val">${d.nombre} ${d.apellidos}</span></div>
       ${d.dni ? '<div class="info-item"><span class="info-label">DNI</span><span class="info-val">'+d.dni+'</span></div>' : ''}
@@ -308,17 +480,21 @@ export class DeudorDetailComponent implements OnInit {
       <div class="info-item"><span class="info-label">Total cobrado</span><span class="info-val green">S/ ${(+(d.total_pagado||0)).toLocaleString('es-PE',{minimumFractionDigits:2})}</span></div>
       <div class="info-item"><span class="info-label">Saldo pendiente</span><span class="info-val red">S/ ${(+(d.saldo_pendiente||0)).toLocaleString('es-PE',{minimumFractionDigits:2})}</span></div>
     </div>
-    <h2>Prestamos (${prestamos.length})</h2>
+    <h2>Préstamos (${prestamos.length})</h2>
     <table><thead><tr><th>Tipo</th><th>Descripcion</th><th>Monto</th><th>Estado</th><th>Inicio</th></tr></thead>
     <tbody>${prestamosRows || '<tr><td colspan="5" style="text-align:center;color:#999">Sin prestamos</td></tr>'}</tbody></table>
     <h2>Historial de pagos (${pagos.length})</h2>
-    <table><thead><tr><th>#</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Metodo</th><th>N Op.</th></tr></thead>
-    <tbody>${pagosRows || '<tr><td colspan="6" style="text-align:center;color:#999">Sin pagos</td></tr>'}
-    <tr class="total-row"><td colspan="3" style="text-align:right">TOTAL COBRADO</td><td style="text-align:right">S/ ${total.toLocaleString('es-PE',{minimumFractionDigits:2})}</td><td colspan="2"></td></tr>
+    <table><thead><tr><th>#</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Método</th><th>N Op.</th><th>Comprobante</th></tr></thead>
+    <tbody>${pagosRows || '<tr><td colspan="7" style="text-align:center;color:#999">Sin pagos</td></tr>'}
+    <tr class="total-row"><td colspan="3" style="text-align:right">TOTAL COBRADO</td><td style="text-align:right">S/ ${total.toLocaleString('es-PE',{minimumFractionDigits:2})}</td><td colspan="3"></td></tr>
     </tbody></table>
-    <div class="footer">Sistema de Cobros — Reporte generado automaticamente</div>
+    <div class="footer">Sistema de Cobros — Reporte generado automáticamente. Los enlaces de comprobante abren la imagen del pago.</div>
     </body></html>`;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 500); }
+        const win = window.open('', '_blank');
+        if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 500); }
+        this.notify.success('Exportado ' + pagos.length + ' pago(s)');
+      },
+      error: () => { this.exporting = false; this.notify.error('No se pudieron cargar los pagos para exportar'); this.cdr.detectChanges(); }
+    });
   }
 }

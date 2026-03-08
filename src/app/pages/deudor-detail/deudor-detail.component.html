@@ -6,15 +6,24 @@
       <a routerLink="/deudores" class="back" aria-label="Volver a Deudores">← Deudores</a>
       <div class="header-row">
         <h1>{{ deudor.nombre }} {{ deudor.apellidos }}</h1>
-        <button type="button" class="btn-pdf" (click)="exportPDF()" aria-label="Exportar a PDF">📄 PDF</button>
-        <button type="button" class="btn-excel" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
+        @if (deudor.telefono) {
+          <button type="button" class="btn-wa" (click)="enviarRecordatorioWhatsApp()" [disabled]="enviandoWhatsApp" aria-label="Enviar recordatorio por WhatsApp">📱 {{ enviandoWhatsApp ? 'Enviando…' : 'WhatsApp' }}</button>
+        }
+        <button type="button" class="btn-pdf" (click)="exportPDF()" [disabled]="exporting" aria-label="Exportar a PDF">📄 {{ exporting ? 'Exportando…' : 'PDF' }}</button>
+        <button type="button" class="btn-excel" (click)="exportExcel()" [disabled]="exporting" aria-label="Exportar a Excel">📊 {{ exporting ? 'Exportando…' : 'Excel' }}</button>
       </div>
       <div class="tags">
         @if (deudor.dni) { <span class="tag">DNI: {{ deudor.dni }}</span> }
         @if (deudor.telefono) { <span class="tag">Tel: {{ deudor.telefono }}</span> }
-        <span class="tag g">Cobrado: S/ {{ deudor.total_pagado | formatNumber }}</span>
-        <span class="tag r">Pendiente: S/ {{ deudor.saldo_pendiente | formatNumber }}</span>
+        <span class="tag g">Cobrado: S/ {{ totalCobrado | formatNumber }}</span>
+        <span class="tag r">Pendiente: S/ {{ saldoPendiente | formatNumber }}</span>
       </div>
+      @if (deudor.notas?.trim()) {
+        <div class="notas-deudor">
+          <span class="notas-lbl">Notas:</span>
+          <span class="notas-txt">{{ deudor.notas }}</span>
+        </div>
+      }
     </div>
 
     <!-- PRESTAMOS -->
@@ -72,15 +81,24 @@
         <div class="lcard">
           <div class="lcard-head">
             <span class="ltype">{{ p.tipo }}</span>
-            <span [class]="'est e-'+p.estado">{{ p.estado }}</span>
+            <div class="lcard-head-right">
+              <span [class]="'est e-'+p.estado">{{ p.estado }}</span>
+              <button type="button" class="btn-edit-prestamo" (click)="abrirEditarPrestamo(p)" title="Editar préstamo" aria-label="Editar préstamo">✏️</button>
+            </div>
           </div>
           <span class="ldesc">{{ p.descripcion || 'Sin descripción' }}</span>
+          @if (p.notas?.trim()) {
+            <p class="lcard-notas">{{ p.notas }}</p>
+          }
           <span class="lamt">S/ {{ p.monto_original | formatNumber }}</span>
           <div class="lmeta">
             <span class="tsm">{{ p.fecha_inicio | date:"dd/MM/yyyy" }}</span>
             @if (p.tasa_interes) { <span class="tsm">{{ p.tasa_interes }}%</span> }
             @if (p.cuota_mensual) { <span class="tsm">Cuota: S/ {{ p.cuota_mensual | formatNumber }}</span> }
           </div>
+          <button type="button" class="btn-cronograma" (click)="abrirCronograma(p)" aria-label="Ver cronograma de cuotas">
+            📅 Ver cronograma
+          </button>
         </div>
       }
       @if (!deudor.prestamos?.length) {
@@ -309,6 +327,87 @@
         <button class="btn-cancel" (click)="deletePago=null;cdr.detectChanges()">Cancelar</button>
         <button class="btn-del" (click)="eliminarPago()" [disabled]="deleting">{{ deleting ? 'Eliminando...' : '🗑️ Eliminar' }}</button>
       </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: CRONOGRAMA DE CUOTAS -->
+@if (cronogramaPrestamo) {
+  <div class="overlay" (click)="cerrarCronograma()">
+    <div class="modal modal-cronograma" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Cronograma: {{ cronogramaPrestamo.descripcion || cronogramaPrestamo.tipo }}</h2>
+        <button class="close-btn" (click)="cerrarCronograma()" aria-label="Cerrar">✕</button>
+      </div>
+      @if (loadingCuotas) {
+        <div class="cronograma-loading">Cargando cuotas...</div>
+      } @else if (cuotasCronograma.length) {
+        <div class="cronograma-resumen">
+          <span class="cr-item">Total esperado: <strong>S/ {{ cronogramaTotalEsperado | formatNumber }}</strong></span>
+          <span class="cr-item cr-green">Pagado: <strong>S/ {{ cronogramaTotalPagado | formatNumber }}</strong></span>
+          <span class="cr-item cr-red">Pendiente: <strong>S/ {{ cronogramaPendiente | formatNumber }}</strong></span>
+        </div>
+        <div class="twrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Vencimiento</th>
+                <th scope="col">Monto esperado</th>
+                <th scope="col">Pagado</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of cuotasCronograma; track c.id) {
+                <tr>
+                  <td class="mu">{{ c.numero_cuota }}</td>
+                  <td class="mo">{{ c.fecha_vencimiento | date:"dd/MM/yyyy" }}</td>
+                  <td class="mo">S/ {{ c.monto_esperado | formatNumber }}</td>
+                  <td class="mo">S/ {{ c.monto_pagado | formatNumber }}</td>
+                  <td><span [class]="'est e-'+c.estado">{{ c.estado }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="cronograma-empty">Este préstamo no tiene cuotas cargadas en el sistema.</div>
+      }
+      <div class="mfooter">
+        <button type="button" class="btn-cancel" (click)="cerrarCronograma()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: EDITAR PRÉSTAMO -->
+@if (editPrestamo) {
+  <div class="overlay" (click)="cerrarEditarPrestamo()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Editar préstamo</h2>
+        <button class="close-btn" (click)="cerrarEditarPrestamo()" aria-label="Cerrar">✕</button>
+      </div>
+      <form [formGroup]="editPrestamoForm" (ngSubmit)="guardarEditarPrestamo()">
+        <div class="fgrid">
+          <div class="f full">
+            <label>Estado</label>
+            <select formControlName="estado">
+              <option value="activo">Activo</option>
+              <option value="vencido">Vencido</option>
+              <option value="pagado">Pagado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <div class="f full"><label>Notas</label><textarea formControlName="notas" rows="3" placeholder="Opcional"></textarea></div>
+        </div>
+        @if (editPrestamoErr) { <div class="form-alert">❌ {{ editPrestamoErr }}</div> }
+        <div class="mfooter">
+          <button type="button" class="btn-cancel" (click)="cerrarEditarPrestamo()">Cancelar</button>
+          <button type="submit" class="btn-save" [disabled]="savingEditPrestamo">{{ savingEditPrestamo ? 'Guardando...' : 'Guardar' }}</button>
+        </div>
+      </form>
     </div>
   </div>
 }

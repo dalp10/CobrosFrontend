@@ -5,8 +5,17 @@
     <ul class="nav">
       <li><a (click)="nav('dashboard')" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}">Dashboard</a></li>
       <li><a (click)="nav('deudores')" routerLinkActive="active">Deudores</a></li>
-      <li><a (click)="nav('prestamos')" routerLinkActive="active">Prestamos</a></li>
+      <li><a (click)="nav('prestamos')" routerLinkActive="active">Préstamos
+        @if (alertasVencidos > 0) {
+          <span class="nav-badge" aria-label="{{ alertasVencidos }} en mora">{{ alertasVencidos }}</span>
+        }
+      </a></li>
       <li><a (click)="nav('pagos')" routerLinkActive="active">Pagos</a></li>
+      <li><a (click)="nav('alertas')" routerLinkActive="active">Alertas
+        @if (totalAlertas > 0) {
+          <span class="nav-badge" aria-label="{{ totalAlertas }} alertas">{{ totalAlertas }}</span>
+        }
+      </a></li>
       @if (auth.currentUser(); as u) {
         @if (u.rol === 'admin') {
           <li><a (click)="nav('usuarios')" routerLinkActive="active">Usuarios</a></li>
@@ -21,5 +30,5 @@
       <button (click)="auth.logout()">Salir</button>
     </div>
   </nav>
-  <main class="content"><router-outlet></router-outlet></main>
+  <main class="content" role="main"><router-outlet></router-outlet></main>
 </div>

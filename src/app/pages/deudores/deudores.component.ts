@@ -32,6 +32,7 @@ export class DeudoresComponent implements OnInit {
   formErr = '';
   submitted = false;
   searchTerm = '';
+  filtroEstado: 'todos' | 'al_dia' | 'en_mora' = 'todos';
   diasAlerta = 30;
   alertas: Deudor[] = [];
 
@@ -85,12 +86,20 @@ export class DeudoresComponent implements OnInit {
     const list = Array.isArray(this.deudores) ? this.deudores : [];
     const term = this.searchTerm.toLowerCase().trim();
     this.deudoresVisible = this.PAGE_SIZE;
-    if (!term) { this.filtered = list; this.cdr.detectChanges(); return; }
-    this.filtered = list.filter(d =>
-      (d && (d.nombre + ' ' + (d.apellidos || '')).toLowerCase().includes(term)) ||
-      (d && (d.dni || '').includes(term)) ||
-      (d && (d.telefono || '').includes(term))
-    );
+    let list2 = list;
+    if (term) {
+      list2 = list.filter(d =>
+        (d && (d.nombre + ' ' + (d.apellidos || '')).toLowerCase().includes(term)) ||
+        (d && (d.dni || '').includes(term)) ||
+        (d && (d.telefono || '').includes(term))
+      );
+    }
+    if (this.filtroEstado === 'al_dia') {
+      list2 = list2.filter(d => +(d?.saldo_pendiente ?? 0) <= 0);
+    } else if (this.filtroEstado === 'en_mora') {
+      list2 = list2.filter(d => +(d?.saldo_pendiente ?? 0) > 0);
+    }
+    this.filtered = list2;
     this.cdr.detectChanges();
   }
 

@@ -1,0 +1,92 @@
+<div class="page">
+  <header class="page-head">
+    <h1 class="title">Alertas</h1>
+    <p class="subtitle">Deudores sin pago reciente y préstamos en mora</p>
+  </header>
+
+  @if (loading) {
+    <div class="loading-msg">Cargando alertas...</div>
+  }
+
+  @if (!loading) {
+    @if (totalAlertas === 0) {
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">✅</span>
+        <p class="empty-title">Sin alertas</p>
+        <p class="empty-hint">No hay deudores sin pago reciente ni préstamos en mora.</p>
+      </div>
+    } @else {
+      <!-- Deudores sin pago reciente -->
+      <section class="sec" aria-labelledby="sec-deudores">
+        <div class="sec-head">
+          <h2 id="sec-deudores" class="sec-title">⚠️ Deudores sin pago reciente</h2>
+          <div class="dias-ctrl">
+            <label for="dias-alerta">Mostrar sin pago hace más de</label>
+            <select id="dias-alerta" [(ngModel)]="diasAlerta" (ngModelChange)="onDiasChange()" class="dias-sel">
+              <option [ngValue]="15">15 días</option>
+              <option [ngValue]="30">30 días</option>
+              <option [ngValue]="60">60 días</option>
+              <option [ngValue]="90">90 días</option>
+            </select>
+          </div>
+        </div>
+        @if (deudoresSinPago.length) {
+          <ul class="alerta-list">
+            @for (d of deudoresSinPago; track d.id) {
+              <li class="alerta-item">
+                <div class="alerta-avatar">{{ d.nombre[0] }}{{ d.apellidos[0] }}</div>
+                <div class="alerta-info">
+                  <a [routerLink]="['/deudores', d.id]" class="alerta-name">{{ d.nombre }} {{ d.apellidos }}</a>
+                  <span class="alerta-meta">
+                    @if (d.ultimo_pago) {
+                      Último pago: {{ d.ultimo_pago | date:"dd/MM/yyyy" }} (hace {{ diasDesde(d.ultimo_pago) }} días)
+                    } @else {
+                      Sin pagos registrados
+                    }
+                  </span>
+                </div>
+                <span class="alerta-pendiente">S/ {{ d.saldo_pendiente | formatNumber }}</span>
+                @if (formatoTelefonoWhatsApp(d.telefono)) {
+                  <div class="alerta-wa-btns">
+                    <button type="button" class="btn-whatsapp btn-enviar" (click)="enviarRecordatorio(d)" [disabled]="enviandoDeudorId === d.id" title="Enviar recordatorio por WhatsApp (vía servidor)">
+                      {{ enviandoDeudorId === d.id ? 'Enviando…' : 'Enviar' }}
+                    </button>
+                    <a [href]="getWhatsAppUrl(d)" target="_blank" rel="noopener noreferrer" class="btn-whatsapp btn-abrir" title="Abrir WhatsApp con el mensaje preparado">Abrir WA</a>
+                  </div>
+                } @else {
+                  <span class="btn-whatsapp disabled" title="Agrega teléfono al deudor para enviar WhatsApp">WhatsApp</span>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="sec-empty">Ningún deudor sin pago en el período seleccionado.</p>
+        }
+      </section>
+
+      <!-- Préstamos en mora -->
+      <section class="sec" aria-labelledby="sec-prestamos">
+        <div class="sec-head">
+          <h2 id="sec-prestamos" class="sec-title">📋 Préstamos en mora</h2>
+          <a [routerLink]="['/prestamos']" class="btn-link">Ver todos los préstamos</a>
+        </div>
+        @if (prestamosVencidos.length) {
+          <ul class="alerta-list">
+            @for (p of prestamosVencidos; track p.id) {
+              <li class="alerta-item">
+                <div class="alerta-avatar prestamo">{{ p.deudor_nombre?.[0] || 'P' }}</div>
+                <div class="alerta-info">
+                  <a [routerLink]="['/deudores', p.deudor_id]" class="alerta-name">{{ p.deudor_nombre }}</a>
+                  <span class="alerta-meta">{{ p.descripcion || p.tipo }} — S/ {{ p.monto_original | formatNumber }}</span>
+                </div>
+                <span class="alerta-badge vencido">Vencido</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="sec-empty">No hay préstamos en estado vencido.</p>
+        }
+      </section>
+    }
+  }
+</div>

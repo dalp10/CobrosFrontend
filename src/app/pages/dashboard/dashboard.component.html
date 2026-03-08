@@ -49,6 +49,13 @@
           <span class="sval white">{{ data.porDeudor.length }}</span>
         </div>
       </div>
+      <a [routerLink]="['/prestamos']" class="scard scard-link" [class.has-alert]="prestamosVencidos > 0" aria-label="Préstamos en mora">
+        <span class="sico" aria-hidden="true">⚠️</span>
+        <div>
+          <span class="slbl">Préstamos en mora</span>
+          <span class="sval" [class.red]="prestamosVencidos > 0">{{ prestamosVencidos }}</span>
+        </div>
+      </a>
     </div>
 
     <div class="row2">
