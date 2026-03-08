@@ -83,6 +83,31 @@
 }
 .btn-excel:hover { background: rgba(34, 211, 160, .25); }
 
+.btn-pdf {
+  background: rgba(79, 142, 247, .15);
+  color: #4f8ef7;
+  border: 1px solid rgba(79, 142, 247, .5);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-pdf:hover { background: rgba(79, 142, 247, .25); }
+
+.btn-clr {
+  background: transparent;
+  color: #7a839e;
+  border: 1px solid #2e3450;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: .85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-clr:hover { border-color: #7a839e; color: #e8ecf4; }
+
 .th-sort {
   background: none;
   border: none;

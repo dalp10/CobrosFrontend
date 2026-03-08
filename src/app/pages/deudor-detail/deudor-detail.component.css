@@ -122,6 +122,20 @@ h1 {
   padding-bottom: 8px;
 }
 
+.evolucion-card {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+.evolucion-canvas {
+  width: 100%;
+  max-width: 600px;
+  height: 180px;
+  display: block;
+}
+
 .btn-sm {
   background: linear-gradient(135deg, #4f8ef7, #7c5cfc);
   color: #fff;
@@ -359,6 +373,7 @@ textarea { resize: vertical; min-height: 60px; }
 select option { background: #1e2230; }
 
 .ferr { font-size: .68rem; color: #f75f5f; }
+.ferr-warn { color: #f7c948; display: block; margin-top: 4px; }
 
 .form-alert {
   background: rgba(247, 95, 95, .1);

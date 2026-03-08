@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, HostListener, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterOutlet, RouterLinkActive, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
@@ -18,8 +18,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private prestamosService = inject(PrestamosService);
   private deudoresService = inject(DeudoresService);
+  private cdr = inject(ChangeDetectorRef);
 
   sidebarOpen = false;
+  notifOpen = false;
   alertasVencidos = 0;
   /** Deudores con saldo pendiente y sin pago en los últimos 30 días */
   alertasDeudoresSinPago = 0;
@@ -58,5 +60,27 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  toggleNotif(): void {
+    this.notifOpen = !this.notifOpen;
+  }
+
+  closeNotif(): void {
+    this.notifOpen = false;
+    this.cdr.detectChanges();
+  }
+
+  navAndCloseNotif(path: string): void {
+    this.nav(path);
+    this.closeNotif();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (this.notifOpen && target && !target.closest('.notif-wrap')) {
+      this.closeNotif();
+    }
   }
 }

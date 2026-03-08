@@ -26,6 +26,16 @@
       }
     </div>
 
+    <!-- EVOLUCIÓN SALDO -->
+    @if (evolucionSaldo.length > 0) {
+      <div class="sec-head">
+        <span class="sec-lbl">Evolución del saldo</span>
+      </div>
+      <div class="evolucion-card">
+        <canvas #evolucionChart class="evolucion-canvas" role="img" aria-label="Gráfico evolución del saldo pendiente"></canvas>
+      </div>
+    }
+
     <!-- PRESTAMOS -->
     <div class="sec-head">
       <span class="sec-lbl">Préstamos</span>
@@ -52,15 +62,19 @@
             <div class="f" [class.has-error]="pi('monto_original')">
               <label>Monto <span class="req">*</span></label>
               <input type="number" formControlName="monto_original" placeholder="0.00" step="0.01" [class.input-err]="pi('monto_original')">
-              @if (pi('monto_original')) { <span class="ferr">Obligatorio y mayor a 0</span> }
+              @if (pi('monto_original')) { <span class="ferr">{{ prestamoForm.get('monto_original')?.hasError('montoMax') ? 'Monto máximo S/ 10,000,000' : 'Obligatorio y mayor a 0' }}</span> }
             </div>
             <div class="f" [class.has-error]="pi('fecha_inicio')">
               <label>Fecha inicio <span class="req">*</span></label>
               <input type="date" formControlName="fecha_inicio" [class.input-err]="pi('fecha_inicio')">
               @if (pi('fecha_inicio')) { <span class="ferr">Obligatorio</span> }
             </div>
-            <div class="f"><label>Fecha fin</label><input type="date" formControlName="fecha_fin"></div>
-            <div class="f"><label>Tasa interes %</label><input type="number" formControlName="tasa_interes" placeholder="0.00" step="0.01" min="0"></div>
+            <div class="f"><label>Fecha fin</label><input type="date" formControlName="fecha_fin" [class.input-err]="pi('fecha_fin')">
+              @if (pi('fecha_fin')) { <span class="ferr">Debe ser igual o posterior a la fecha de inicio</span> }
+            </div>
+            <div class="f" [class.has-error]="pi('tasa_interes')"><label>Tasa interes %</label><input type="number" formControlName="tasa_interes" placeholder="0.00" step="0.01" min="0" [class.input-err]="pi('tasa_interes')">
+              @if (pi('tasa_interes')) { <span class="ferr">Entre 0 y 100</span> }
+            </div>
             <div class="f"><label>Cuota mensual S/</label><input type="number" formControlName="cuota_mensual" placeholder="0.00" step="0.01" min="0"></div>
             <div class="f"><label>Total cuotas</label><input type="number" formControlName="total_cuotas" placeholder="1" min="1"></div>
             <div class="f"><label>Banco / Entidad</label><input type="text" formControlName="banco" placeholder="BCP, BBVA..."></div>
@@ -175,12 +189,15 @@
           <div class="f" [class.has-error]="fi('fecha_pago')">
             <label>Fecha <span class="req">*</span></label>
             <input type="date" formControlName="fecha_pago" [class.input-err]="fi('fecha_pago')">
-            @if (fi('fecha_pago')) { <span class="ferr">Obligatorio</span> }
+            @if (fi('fecha_pago')) { <span class="ferr">{{ pagoForm.get('fecha_pago')?.hasError('fechaFutura') ? 'La fecha no puede ser futura' : 'Obligatorio' }}</span> }
           </div>
           <div class="f" [class.has-error]="fi('monto')">
             <label>Monto <span class="req">*</span></label>
             <input type="number" formControlName="monto" placeholder="0.00" step="0.01" [class.input-err]="fi('monto')">
-            @if (fi('monto')) { <span class="ferr">Obligatorio y mayor a 0</span> }
+            @if (fi('monto')) { <span class="ferr">{{ pagoForm.get('monto')?.hasError('montoMax') ? 'Monto máximo S/ 999,999.99' : 'Obligatorio y mayor a 0' }}</span> }
+            @if (pagoMontoExcedeSaldo) {
+              <span class="ferr ferr-warn">⚠️ El monto supera el saldo del préstamo (S/ {{ saldoPrestamoSeleccionado | formatNumber }}). Puedes registrar igual si es correcto.</span>
+            }
           </div>
           <div class="f" [class.has-error]="fi('metodo_pago')">
             <label>Método <span class="req">*</span></label>

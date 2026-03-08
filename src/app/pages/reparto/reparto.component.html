@@ -1,0 +1,759 @@
+<div class="page">
+  <header class="page-head">
+    <h1 class="title">Reparto de gastos</h1>
+    <p class="subtitle">Servicios (agua, luz, etc.) repartidos entre Willy, Alain y Dayer. Quien tenga cargo adicional (ej. aire) paga más cada mes.</p>
+  </header>
+
+  @if (loading) {
+    <div class="loading-msg">Cargando...</div>
+  }
+
+  @if (!loading && resumen) {
+    <!-- Selector de período -->
+    <section class="sec sec-periodo">
+      <div class="periodo-bar">
+        <span class="periodo-label">Período:</span>
+        <div class="periodo-btns">
+          <button type="button" class="btn-periodo" [class.active]="!periodoDesde && !periodoHasta" (click)="aplicarPeriodo('todo')">Todo</button>
+          <button type="button" class="btn-periodo" (click)="aplicarPeriodo('mes')">Este mes</button>
+          <button type="button" class="btn-periodo" (click)="aplicarPeriodo('bimestre')">Bimestre actual</button>
+        </div>
+        <span class="periodo-label">Desde</span>
+        <input type="date" [(ngModel)]="periodoDesdeInput" name="periodoDesdeInput" class="input-date" />
+        <span class="periodo-label">Hasta</span>
+        <input type="date" [(ngModel)]="periodoHastaInput" name="periodoHastaInput" class="input-date" />
+        <button type="button" class="btn-periodo" (click)="aplicarRangoFechas()">Aplicar</button>
+        @if (grupos.length > 1) {
+          <span class="periodo-label">Grupo:</span>
+          <select [(ngModel)]="repartoId" (ngModelChange)="cambiarGrupo()" name="repartoId" class="select-periodo">
+            @for (gr of grupos; track gr.id) {
+              <option [ngValue]="gr.id">{{ gr.nombre }}</option>
+            }
+          </select>
+        }
+        <span class="periodo-label">Ver solo:</span>
+        <select [(ngModel)]="miembroIdFilter" (ngModelChange)="cambiarFiltroMiembro()" name="miembroFilter" class="select-periodo">
+          <option [ngValue]="null">Todos</option>
+          @for (m of resumen.miembros; track m.id) {
+            <option [ngValue]="m.id">{{ m.nombre }}</option>
+          }
+        </select>
+        @if (periodoDesde && periodoHasta) {
+          <span class="periodo-texto">Mostrando {{ periodoDesde }} — {{ periodoHasta }}</span>
+        } @else {
+          <span class="periodo-texto">Mostrando todo</span>
+        }
+      </div>
+    </section>
+
+    <!-- Quién le debe a quién -->
+    @if (resumen.sugerencias_reembolso && resumen.sugerencias_reembolso.length) {
+      <section class="sec">
+        <div class="sec-head">
+          <h2 class="sec-title">Quién le debe a quién</h2>
+        </div>
+        <p class="hint-cargo">Sugerencias para cuadrar deudas con el menor número de pagos.</p>
+        <ul class="list sugerencias-list">
+          @for (s of resumen.sugerencias_reembolso; track s.de_id + '-' + s.para_id + '-' + s.monto) {
+            <li class="list-item">
+              <span class="list-concepto">{{ s.de_nombre }} → {{ s.para_nombre }}</span>
+              <span class="list-monto">S/ {{ s.monto | formatNumber }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- Pendientes -->
+    @if (pendientes && (pendientes.miembros_que_deben.length || pendientes.gastos_sin_reembolso.length)) {
+      <section class="sec">
+        <div class="sec-head">
+          <h2 class="sec-title">Pendientes</h2>
+        </div>
+        @if (pendientes.miembros_que_deben.length) {
+          <p class="hint-cargo">Miembros que deben:</p>
+          <ul class="list">
+            @for (m of pendientes.miembros_que_deben; track m.id) {
+              <li class="list-item">
+                <span class="list-concepto">{{ m.nombre }}</span>
+                <span class="list-monto negativo">S/ {{ (-m.saldo) | formatNumber }}</span>
+              </li>
+            }
+          </ul>
+        }
+        @if (pendientes.gastos_sin_reembolso.length) {
+          <p class="hint-cargo">Gastos sin reembolso registrado (quien pagó aún no ha recibido):</p>
+          <ul class="list">
+            @for (g of pendientes.gastos_sin_reembolso; track g.id) {
+              <li class="list-item">
+                <span class="list-concepto">{{ g.concepto }}</span>
+                <span class="list-monto">S/ {{ g.monto_total | formatNumber }}</span>
+                <span class="list-meta">Pagó: {{ g.pagado_por_nombre }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+
+    <!-- Resumen y saldos -->
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Resumen</h2>
+        <div class="sec-head-actions">
+          @if (categorias.length >= 0) {
+            <button type="button" class="btn-add" (click)="showNuevaCategoria = !showNuevaCategoria">{{ showNuevaCategoria ? 'Cancelar' : '+ Categoría' }}</button>
+          }
+          <button type="button" class="btn-add" (click)="toggleNuevoMiembro()">{{ showNuevoMiembro ? 'Cancelar' : '+ Agregar persona' }}</button>
+        </div>
+      </div>
+      @if (showNuevaCategoria) {
+        <div class="form-card">
+          <div class="fgrid">
+            <div class="f">
+              <label>Nombre categoría</label>
+              <input type="text" [(ngModel)]="nuevaCategoriaNombre" name="nuevaCat" placeholder="Ej. Luz, Agua" maxlength="80" />
+            </div>
+            <div class="f">
+              <button type="button" class="btn" (click)="submitNuevaCategoria()" [disabled]="savingCategoria || !nuevaCategoriaNombre.trim()">{{ savingCategoria ? 'Guardando...' : 'Crear' }}</button>
+            </div>
+          </div>
+        </div>
+      }
+      @if (categorias.length) {
+        <div class="categorias-list">
+          <span class="periodo-label">Categorías:</span>
+          <ul class="list list-inline">
+            @for (c of categorias; track c.id) {
+              <li class="list-item list-item-sm">
+                @if (categoriaEditando?.id === c.id) {
+                  <span class="categoria-edit-inline">
+                    <input type="text" [(ngModel)]="categoriaFormEdit.nombre" placeholder="Nombre" class="input-sm" maxlength="80" />
+                    <input type="text" [(ngModel)]="categoriaFormEdit.color" placeholder="#hex color" class="input-sm input-color" maxlength="7" />
+                    <button type="button" class="btn-sm" (click)="submitEditarCategoria()" [disabled]="savingCategoriaEdit">Guardar</button>
+                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarCategoria()">Cancelar</button>
+                  </span>
+                } @else {
+                  @if (c.color) { <span class="categoria-dot" [style.background-color]="c.color"></span> }
+                  <span class="list-concepto">{{ c.nombre }}</span>
+                  <button type="button" class="link-edit" (click)="abrirEditarCategoria(c)">Editar</button>
+                  <button type="button" class="link-delete" (click)="confirmarEliminarCategoria(c)">Eliminar</button>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      }
+      @if (showNuevoMiembro) {
+        <div class="form-card">
+          <form (ngSubmit)="submitNuevoMiembro()">
+            <div class="fgrid">
+              <div class="f">
+                <label>Nombre <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="nuevoMiembroForm.nombre" name="nuevoNombre" placeholder="Ej. María López" maxlength="100" />
+              </div>
+              <div class="f">
+                <label>Cargo adicional (S/) /mes</label>
+                <input type="number" [(ngModel)]="nuevoMiembroForm.cargo_adicional_mensual" name="nuevoCargo" min="0" step="0.01" placeholder="0" />
+              </div>
+            </div>
+            @if (errNuevoMiembro) { <p class="form-err">{{ errNuevoMiembro }}</p> }
+            <div class="faction">
+              <button type="button" class="btn-cancel" (click)="toggleNuevoMiembro()">Cancelar</button>
+              <button type="submit" class="btn" [disabled]="savingNuevoMiembro">{{ savingNuevoMiembro ? 'Guardando...' : 'Agregar al reparto' }}</button>
+            </div>
+          </form>
+        </div>
+      }
+      <div class="resumen-totales">
+        <div class="totales-item">
+          <span class="totales-label">Total gastos</span>
+          <span class="totales-val">S/ {{ resumen.total_gastos | formatNumber }}</span>
+        </div>
+        <div class="totales-item">
+          <span class="totales-label">Cuota por persona (promedio)</span>
+          <span class="totales-val">S/ {{ resumen.cuota_por_persona | formatNumber }}</span>
+        </div>
+      </div>
+      <p class="hint-cargo">Si alguien tiene un cargo extra (ej. aire acondicionado), asígnalo en su tarjeta. Su cuota será mayor cada mes.</p>
+      <div class="miembros-grid">
+        @for (m of resumen.miembros; track m.id) {
+          <div class="miembro-card" [class.al-dia]="m.al_dia">
+            <div class="miembro-avatar">{{ m.nombre.split(' ')[0][0] }}{{ m.nombre.split(' ')[1]?.[0] || '' }}</div>
+            <h3 class="miembro-nombre">{{ m.nombre }}</h3>
+            <div class="miembro-line cargo-line">
+              @if (editingCargoId === m.id) {
+                <span class="cargo-edit">
+                  <label>Cargo adicional (S/) /mes</label>
+                  <input type="number" [(ngModel)]="cargoEditValue" min="0" step="0.01" placeholder="0" />
+                  <div class="cargo-btns">
+                    <button type="button" class="btn-sm" (click)="guardarCargo()" [disabled]="savingCargoId === m.id">{{ savingCargoId === m.id ? 'Guardando...' : 'Guardar' }}</button>
+                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarCargo()">Cancelar</button>
+                  </div>
+                </span>
+              } @else {
+                <span>Cargo adicional: <strong>S/ {{ (m.cargo_adicional_mensual ?? 0) | formatNumber }}/mes</strong></span>
+                <button type="button" class="link-edit" (click)="editarCargo(m)">Editar</button>
+              }
+            </div>
+            <div class="miembro-line">Pagó servicios: <strong>S/ {{ m.total_pagado_servicios | formatNumber }}</strong></div>
+            <div class="miembro-line">Su cuota: S/ {{ m.cuota_que_le_toca | formatNumber }}</div>
+            <div class="miembro-line">Le devolvieron: S/ {{ m.reembolsos_recibidos | formatNumber }}</div>
+            <div class="miembro-line">Pagó en reembolsos: S/ {{ m.reembolsos_dados | formatNumber }}</div>
+            @if (m.saldo > 0) {
+              <div class="miembro-saldo positivo">Te deben: S/ {{ m.saldo | formatNumber }}</div>
+            } @else if (m.saldo < 0) {
+              <div class="miembro-saldo negativo">Debe: S/ {{ (-m.saldo) | formatNumber }}</div>
+            } @else {
+              <div class="miembro-saldo al-dia">Al día</div>
+            }
+            <button type="button" class="link-delete" (click)="confirmarEliminar(m)">Eliminar del reparto</button>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Resumen por mes -->
+    @if (resumen.resumen_por_mes && resumen.resumen_por_mes.length) {
+      <section class="sec">
+        <div class="sec-head">
+          <h2 class="sec-title">Resumen por mes</h2>
+        </div>
+        <p class="hint-cargo">Total de gastos y cuota por persona en cada mes con actividad.</p>
+        <div class="mes-grid">
+          @for (item of resumen.resumen_por_mes; track item.mes) {
+            <div class="mes-card">
+              <h3 class="mes-titulo">{{ item.mes }}</h3>
+              <div class="mes-total">Total: S/ {{ item.total | formatNumber }}</div>
+              <div class="mes-cuota">Cuota/persona: S/ {{ item.cuota_por_persona | formatNumber }}</div>
+              <ul class="mes-cuotas">
+                @for (c of item.cuotas; track c.id) {
+                  <li class="mes-cuota-line">{{ c.nombre }}: S/ {{ c.cuota | formatNumber }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Desglose por categoría -->
+    @if (resumen.desglose_por_categoria && resumen.desglose_por_categoria.length) {
+      <section class="sec">
+        <div class="sec-head">
+          <h2 class="sec-title">Gastos por categoría</h2>
+        </div>
+        <ul class="list">
+          @for (item of resumen.desglose_por_categoria; track item.nombre) {
+            <li class="list-item">
+              <span class="list-concepto">{{ item.nombre }}</span>
+              <span class="list-monto">S/ {{ item.total | formatNumber }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- Presupuesto -->
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Presupuesto por mes</h2>
+        <button type="button" class="btn-add" (click)="togglePresupuesto()">{{ showPresupuesto ? 'Cerrar' : 'Definir presupuesto' }}</button>
+      </div>
+      @if (showPresupuesto) {
+        <div class="form-card">
+          <div class="fgrid">
+            <div class="f">
+              <label>Año</label>
+              <input type="number" [(ngModel)]="presupuestoForm.anno" name="presAnno" min="2020" max="2035" />
+            </div>
+            <div class="f">
+              <label>Mes (1-12)</label>
+              <input type="number" [(ngModel)]="presupuestoForm.mes" name="presMes" min="1" max="12" />
+            </div>
+            <div class="f">
+              <label>Techo (S/)</label>
+              <input type="number" [(ngModel)]="presupuestoForm.monto_techo" name="presMonto" min="0" step="0.01" />
+            </div>
+            <div class="f">
+              <button type="button" class="btn" (click)="submitPresupuesto()" [disabled]="savingPresupuesto">{{ savingPresupuesto ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+      }
+      @if (presupuestos.length) {
+        <ul class="list">
+          @for (p of presupuestos; track p.id) {
+            <li class="list-item">
+              <span class="list-concepto">{{ p.anno }}-{{ p.mes }}</span>
+              <span class="list-monto">S/ {{ p.monto_techo | formatNumber }}</span>
+            </li>
+          }
+        </ul>
+      }
+      @if (presupuestoVsReal && (presupuestoVsReal.techo > 0 || presupuestoVsReal.gastado > 0)) {
+        <div class="presupuesto-vs-real">
+          <h4>Presupuesto vs real ({{ presupuestoVsReal.mesLabel }})</h4>
+          <div class="presupuesto-bar-wrap">
+            <span class="presupuesto-label">Techo: S/ {{ presupuestoVsReal.techo | formatNumber }}</span>
+            <span class="presupuesto-label">Gastado: S/ {{ presupuestoVsReal.gastado | formatNumber }} ({{ presupuestoVsReal.porcentaje }}%)</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="presupuestoBarWidth" [class.over]="presupuestoVsReal.porcentaje > 100"></div>
+          </div>
+          @if (presupuestoVsReal.porcentaje > 100) {
+            <p class="hint-cargo warn">Se superó el presupuesto del mes.</p>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Gastos -->
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Gastos (servicios)</h2>
+        <div class="sec-head-actions">
+          <button type="button" class="btn-add" (click)="repetirUltimoGasto()">Repetir último</button>
+          <button type="button" class="btn-add" (click)="toggleGasto()">{{ showGasto ? 'Cancelar' : '+ Nuevo gasto' }}</button>
+        </div>
+      </div>
+      @if (showGasto) {
+        <div class="form-card">
+          <form (ngSubmit)="submitGasto()">
+            <div class="fgrid">
+              <div class="f">
+                <label>Concepto <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="gastoForm.concepto" name="concepto" placeholder="Ej. Luz ene-feb 2026" maxlength="500" />
+              </div>
+              <div class="f">
+                <label>Monto total (S/) <span class="req">*</span></label>
+                <input type="number" [(ngModel)]="gastoForm.monto_total" name="monto_total" step="0.01" min="0.01" placeholder="0.00" />
+              </div>
+              <div class="f">
+                <label>Fecha</label>
+                <input type="date" [(ngModel)]="gastoForm.fecha" name="fecha" />
+              </div>
+              <div class="f">
+                <label>Quién pagó <span class="req">*</span></label>
+                <select [(ngModel)]="gastoForm.pagado_por_id" name="pagado_por_id">
+                  @for (m of resumen.miembros; track m.id) {
+                    <option [ngValue]="m.id">{{ m.nombre }}</option>
+                  }
+                </select>
+              </div>
+              <div class="f">
+                <label>Categoría</label>
+                <select [(ngModel)]="gastoForm.categoria_id" name="categoria_id">
+                  <option [ngValue]="null">Ninguna</option>
+                  @for (c of categorias; track c.id) {
+                    <option [ngValue]="c.id">{{ c.nombre }}</option>
+                  }
+                </select>
+              </div>
+              <div class="f">
+                <label>Medio de pago</label>
+                <select [(ngModel)]="gastoForm.medio_pago" name="medio_pago">
+                  @for (m of MEDIOS_PAGO; track m.value) {
+                    <option [ngValue]="m.value">{{ m.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="f full">
+                <label>Notas</label>
+                <input type="text" [(ngModel)]="gastoForm.notas" name="notas" placeholder="Opcional" />
+              </div>
+            </div>
+            @if (gastoForm.participantes.length) {
+              <div class="participantes-section">
+                <label class="participantes-label">Repartir entre (opcional)</label>
+                <p class="hint-cargo">Marca quiénes participan en este gasto y el peso de cada uno (ej. 1 = parte igual, 2 = doble). Si no cambias nada, se reparte igual entre todos.</p>
+                <div class="participantes-list">
+                  @for (p of gastoForm.participantes; track p.miembro_id) {
+                    <div class="participante-row">
+                      <input type="checkbox" [(ngModel)]="p.participa" [ngModelOptions]="{standalone: true}" name="part_{{ p.miembro_id }}" />
+                      <span class="participante-nombre">{{ p.nombre }}</span>
+                      <input type="number" [(ngModel)]="p.peso" [ngModelOptions]="{standalone: true}" name="peso_{{ p.miembro_id }}" min="0" step="0.01" class="participante-peso" placeholder="1" />
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+            @if (errGasto) { <p class="form-err">{{ errGasto }}</p> }
+            <div class="faction">
+              <button type="button" class="btn-cancel" (click)="toggleGasto()">Cancelar</button>
+              <button type="submit" class="btn" [disabled]="savingGasto">{{ savingGasto ? 'Guardando...' : 'Registrar gasto' }}</button>
+            </div>
+          </form>
+        </div>
+      }
+      @if (resumen.gastos.length) {
+        <div class="gastos-filtros">
+          <input type="text" [(ngModel)]="gastoSearchText" name="gastoSearch" placeholder="Buscar por concepto o notas..." class="input-search" />
+          <select [(ngModel)]="gastoOrden" name="gastoOrden" class="select-orden">
+            <option value="fecha">Orden: Fecha</option>
+            <option value="monto">Orden: Monto</option>
+            <option value="concepto">Orden: Concepto</option>
+          </select>
+        </div>
+        <ul class="list">
+          @for (g of gastosFiltradosOrdenados; track g.id) {
+            <li class="list-item" [class.has-categoria]="g.categoria_color">
+              @if (gastoEditando?.id === g.id) {
+                <div class="form-edit-inline">
+                  <div class="fgrid">
+                    <div class="f">
+                      <label>Concepto</label>
+                      <input type="text" [(ngModel)]="gastoFormEdit.concepto" maxlength="500" />
+                    </div>
+                    <div class="f">
+                      <label>Monto (S/)</label>
+                      <input type="number" [(ngModel)]="gastoFormEdit.monto_total" step="0.01" min="0.01" />
+                    </div>
+                    <div class="f">
+                      <label>Fecha</label>
+                      <input type="date" [(ngModel)]="gastoFormEdit.fecha" />
+                    </div>
+                    <div class="f">
+                      <label>Quién pagó</label>
+                      <select [(ngModel)]="gastoFormEdit.pagado_por_id">
+                        @for (m of resumen.miembros; track m.id) {
+                          <option [ngValue]="m.id">{{ m.nombre }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="f">
+                      <label>Categoría</label>
+                      <select [(ngModel)]="gastoFormEdit.categoria_id">
+                        <option [ngValue]="null">Ninguna</option>
+                        @for (c of categorias; track c.id) {
+                          <option [ngValue]="c.id">{{ c.nombre }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="f">
+                      <label>Medio de pago</label>
+                      <select [(ngModel)]="gastoFormEdit.medio_pago">
+                        @for (m of MEDIOS_PAGO; track m.value) {
+                          <option [ngValue]="m.value">{{ m.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="f full">
+                      <label>Notas</label>
+                      <input type="text" [(ngModel)]="gastoFormEdit.notas" placeholder="Opcional" />
+                    </div>
+                  </div>
+                  @if (gastoFormEdit.participantes.length) {
+                    <div class="participantes-section participantes-section-inline">
+                      <label class="participantes-label">Repartir entre</label>
+                      <div class="participantes-list">
+                        @for (p of gastoFormEdit.participantes; track p.miembro_id) {
+                          <div class="participante-row">
+                            <input type="checkbox" [(ngModel)]="p.participa" [ngModelOptions]="{standalone: true}" name="edit_part_{{ p.miembro_id }}" />
+                            <span class="participante-nombre">{{ p.nombre }}</span>
+                            <input type="number" [(ngModel)]="p.peso" [ngModelOptions]="{standalone: true}" name="edit_peso_{{ p.miembro_id }}" min="0" step="0.01" class="participante-peso" />
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                  @if (errGastoEdit) { <p class="form-err">{{ errGastoEdit }}</p> }
+                  <div class="faction">
+                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarGasto()">Cancelar</button>
+                    <button type="button" class="btn-sm" (click)="submitEditarGasto()" [disabled]="savingGastoEdit">{{ savingGastoEdit ? 'Guardando...' : 'Guardar' }}</button>
+                  </div>
+                </div>
+              } @else {
+                <span class="list-concepto">
+                  @if (g.categoria_color) {
+                    <span class="categoria-dot" [style.background-color]="g.categoria_color" title="{{ g.categoria_nombre }}"></span>
+                  }
+                  {{ g.concepto }}{{ g.categoria_nombre ? ' · ' + g.categoria_nombre : '' }}
+                </span>
+                <span class="list-monto">S/ {{ g.monto_total | formatNumber }}</span>
+                <span class="list-meta">{{ g.fecha | date:"dd/MM/yyyy" }} — Pagó: {{ g.pagado_por_nombre }}{{ getMedioPagoLabel(g.medio_pago) ? ' · ' + getMedioPagoLabel(g.medio_pago) : '' }}</span>
+                <div class="list-actions">
+                  <button type="button" class="link-edit" (click)="abrirEditarGasto(g)">Editar</button>
+                  <button type="button" class="link-edit" (click)="repetirGastoMes(g)" [disabled]="repitiendoGastoId === g.id">{{ repitiendoGastoId === g.id ? '...' : 'Repetir mes' }}</button>
+                  <button type="button" class="link-edit" (click)="loadAdjuntos(g.id)">Recibo ({{ getAdjuntos(g.id).length }})</button>
+                  <button type="button" class="link-delete" (click)="confirmarAnularGasto(g)">Anular</button>
+                </div>
+                <div class="adjuntos-inline recibo-block">
+                  <span class="recibo-label">Recibo del servicio:</span>
+                  @if (adjuntosPorGasto[g.id]?.length) {
+                    <span class="adjuntos-list">
+                      @for (adj of getAdjuntos(g.id); track adj.id) {
+                        <span class="adjunto-tag">
+                          <button type="button" class="link-download" (click)="descargarAdjunto(adj)">{{ adj.nombre_archivo }}</button>
+                          <button type="button" class="link-delete-sm" (click)="eliminarAdjunto(adj)">×</button>
+                        </span>
+                      }
+                      <label class="btn-upload">Subir otro <input type="file" (change)="onFileAdjunto(g.id, $event)" style="display:none" /></label>
+                    </span>
+                  } @else {
+                    <label class="btn-upload btn-upload-recibo">Adjuntar recibo <input type="file" (change)="onFileAdjunto(g.id, $event)" style="display:none" /></label>
+                    @if (subiendoAdjuntoGastoId === g.id) { <span class="meta">Subiendo...</span> }
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="sec-empty">Aún no hay gastos. Registra agua, luz, etc.</p>
+      }
+    </section>
+
+    <!-- Reembolsos -->
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Reembolsos</h2>
+        <button type="button" class="btn-add" (click)="toggleReembolso()">{{ showReembolso ? 'Cancelar' : '+ Nuevo reembolso' }}</button>
+      </div>
+      @if (showReembolso) {
+        <div class="form-card">
+          <form (ngSubmit)="submitReembolso()">
+            <div class="fgrid">
+              <div class="f">
+                <label>Quién paga <span class="req">*</span></label>
+                <select [(ngModel)]="reembolsoForm.de_miembro_id" name="de_miembro_id">
+                  <option [ngValue]="null">Seleccionar...</option>
+                  @for (m of resumen.miembros; track m.id) {
+                    <option [ngValue]="m.id">{{ m.nombre }}</option>
+                  }
+                </select>
+              </div>
+              <div class="f">
+                <label>A quién le devuelve <span class="req">*</span></label>
+                <select [(ngModel)]="reembolsoForm.para_miembro_id" name="para_miembro_id">
+                  <option [ngValue]="null">Seleccionar...</option>
+                  @for (m of resumen.miembros; track m.id) {
+                    <option [ngValue]="m.id">{{ m.nombre }}</option>
+                  }
+                </select>
+              </div>
+              <div class="f">
+                <label>Monto (S/) <span class="req">*</span></label>
+                <input type="number" [(ngModel)]="reembolsoForm.monto" name="monto" step="0.01" min="0.01" placeholder="0.00" />
+              </div>
+              <div class="f">
+                <label>Fecha</label>
+                <input type="date" [(ngModel)]="reembolsoForm.fecha" name="fecha" />
+              </div>
+              <div class="f full">
+                <label>Concepto</label>
+                <input type="text" [(ngModel)]="reembolsoForm.concepto" name="concepto" placeholder="Opcional" />
+              </div>
+              <div class="f full">
+                <label>Asociado al gasto (opcional)</label>
+                <select [(ngModel)]="reembolsoForm.gasto_id" name="gasto_id">
+                  <option [ngValue]="null">Ninguno</option>
+                  @for (g of resumen.gastos; track g.id) {
+                    <option [ngValue]="g.id">{{ g.concepto }} — S/ {{ g.monto_total | formatNumber }} ({{ g.fecha | date:"dd/MM/yyyy" }})</option>
+                  }
+                </select>
+              </div>
+              <div class="f">
+                <label>Medio de pago</label>
+                <select [(ngModel)]="reembolsoForm.medio_pago" name="medio_pago">
+                  @for (m of MEDIOS_PAGO; track m.value) {
+                    <option [ngValue]="m.value">{{ m.label }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            @if (errReembolso) { <p class="form-err">{{ errReembolso }}</p> }
+            <div class="faction">
+              <button type="button" class="btn-cancel" (click)="toggleReembolso()">Cancelar</button>
+              <button type="submit" class="btn" [disabled]="savingReembolso">{{ savingReembolso ? 'Guardando...' : 'Registrar reembolso' }}</button>
+            </div>
+          </form>
+        </div>
+      }
+      @if (resumen.reembolsos.length) {
+        <ul class="list">
+          @for (r of resumen.reembolsos; track r.id) {
+            <li class="list-item">
+              @if (reembolsoEditando?.id === r.id) {
+                <div class="form-edit-inline">
+                  <div class="fgrid">
+                    <div class="f">
+                      <label>Quién paga</label>
+                      <select [(ngModel)]="reembolsoFormEdit.de_miembro_id">
+                        @for (m of resumen.miembros; track m.id) {
+                          <option [ngValue]="m.id">{{ m.nombre }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="f">
+                      <label>A quién le devuelve</label>
+                      <select [(ngModel)]="reembolsoFormEdit.para_miembro_id">
+                        @for (m of resumen.miembros; track m.id) {
+                          <option [ngValue]="m.id">{{ m.nombre }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="f">
+                      <label>Monto (S/)</label>
+                      <input type="number" [(ngModel)]="reembolsoFormEdit.monto" step="0.01" min="0.01" />
+                    </div>
+                    <div class="f">
+                      <label>Fecha</label>
+                      <input type="date" [(ngModel)]="reembolsoFormEdit.fecha" />
+                    </div>
+                    <div class="f full">
+                      <label>Concepto</label>
+                      <input type="text" [(ngModel)]="reembolsoFormEdit.concepto" placeholder="Opcional" />
+                    </div>
+                    <div class="f full">
+                      <label>Asociado al gasto (opcional)</label>
+                      <select [(ngModel)]="reembolsoFormEdit.gasto_id">
+                        <option [ngValue]="null">Ninguno</option>
+                        @for (g of resumen.gastos; track g.id) {
+                          <option [ngValue]="g.id">{{ g.concepto }} — S/ {{ g.monto_total | formatNumber }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="f">
+                      <label>Medio de pago</label>
+                      <select [(ngModel)]="reembolsoFormEdit.medio_pago">
+                        @for (m of MEDIOS_PAGO; track m.value) {
+                          <option [ngValue]="m.value">{{ m.label }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  @if (errReembolsoEdit) { <p class="form-err">{{ errReembolsoEdit }}</p> }
+                  <div class="faction">
+                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarReembolso()">Cancelar</button>
+                    <button type="button" class="btn-sm" (click)="submitEditarReembolso()" [disabled]="savingReembolsoEdit">{{ savingReembolsoEdit ? 'Guardando...' : 'Guardar' }}</button>
+                  </div>
+                </div>
+              } @else {
+                <span class="list-concepto">{{ r.de_nombre }} → {{ r.para_nombre }}</span>
+                <span class="list-monto">S/ {{ r.monto | formatNumber }}</span>
+                <span class="list-meta">{{ r.fecha | date:"dd/MM/yyyy" }}{{ getMedioPagoLabel(r.medio_pago) ? ' · ' + getMedioPagoLabel(r.medio_pago) : '' }}{{ r.concepto ? ' — ' + r.concepto : '' }}{{ getGastoConcepto(r.gasto_id) ? ' · Gasto: ' + getGastoConcepto(r.gasto_id) : '' }}</span>
+                <div class="list-actions">
+                  <button type="button" class="link-edit" (click)="abrirEditarReembolso(r)">Editar</button>
+                  <button type="button" class="link-edit" (click)="loadAdjuntosReembolso(r.id)">Evidencia ({{ getAdjuntosReembolso(r.id).length }})</button>
+                  <button type="button" class="link-delete" (click)="confirmarAnularReembolso(r)">Anular</button>
+                </div>
+                @if (adjuntosPorReembolso[r.id]?.length) {
+                  <div class="adjuntos-inline">
+                    @for (adj of getAdjuntosReembolso(r.id); track adj.id) {
+                      <span class="adjunto-tag">
+                        <button type="button" class="link-download" (click)="descargarAdjuntoReembolso(adj)">{{ adj.nombre_archivo }}</button>
+                        <button type="button" class="link-delete-sm" (click)="eliminarAdjuntoReembolso(adj)">×</button>
+                      </span>
+                    }
+                    <label class="btn-upload">Subir <input type="file" (change)="onFileAdjuntoReembolso(r.id, $event)" style="display:none" /></label>
+                  </div>
+                } @else {
+                  <div class="adjuntos-inline">
+                    <label class="btn-upload">Subir evidencia de pago <input type="file" (change)="onFileAdjuntoReembolso(r.id, $event)" style="display:none" /></label>
+                    @if (subiendoAdjuntoReembolsoId === r.id) { <span class="meta">Subiendo...</span> }
+                  </div>
+                }
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="sec-empty">Aún no hay reembolsos registrados.</p>
+      }
+    </section>
+
+    <!-- Reportes -->
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Reportes</h2>
+      </div>
+      <p class="hint-cargo">Descarga un reporte en CSV o PDF con el resumen por miembro, gastos y reembolsos. Opcional: elige un período (desde / hasta) para filtrar.</p>
+      <div class="form-card">
+        <div class="fgrid">
+          <div class="f">
+            <label>Desde (opcional)</label>
+            <input type="date" [(ngModel)]="reporteDesde" name="reporteDesde" />
+          </div>
+          <div class="f">
+            <label>Hasta (opcional)</label>
+            <input type="date" [(ngModel)]="reporteHasta" name="reporteHasta" />
+          </div>
+        </div>
+        <div class="faction reporte-actions">
+          <button type="button" class="btn" (click)="descargarReporte()" [disabled]="descargandoReporte">
+            {{ descargandoReporte ? 'Generando...' : 'Descargar CSV' }}
+          </button>
+          <button type="button" class="btn" (click)="descargarExcel()" [disabled]="descargandoExcel">
+            {{ descargandoExcel ? 'Generando...' : 'Descargar Excel' }}
+          </button>
+          <button type="button" class="btn btn-pdf" (click)="descargarPdf()" [disabled]="descargandoPdf">
+            {{ descargandoPdf ? 'Generando...' : 'Descargar PDF' }}
+          </button>
+        </div>
+      </div>
+    </section>
+  }
+</div>
+
+<!-- Modal confirmar eliminar miembro -->
+@if (miembroAEliminar) {
+  <div class="overlay" (click)="cerrarModalEliminar()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <h3>¿Eliminar del reparto?</h3>
+      <p>Se quitará a <strong>{{ miembroAEliminar.nombre }}</strong> del reparto. Dejará de aparecer en la lista y en los gastos futuros.</p>
+      <p class="modal-hint">Los gastos y reembolsos pasados se conservan. Si la agregaste por error, puedes volver a agregarla después con «+ Agregar persona».</p>
+      <div class="mfooter">
+        <button type="button" class="btn-cancel" (click)="cerrarModalEliminar()">Cancelar</button>
+        <button type="button" class="btn-del" (click)="eliminarMiembro()" [disabled]="deletingMiembro">{{ deletingMiembro ? 'Eliminando...' : 'Eliminar' }}</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal confirmar anular gasto -->
+@if (gastoAAnular) {
+  <div class="overlay" (click)="cerrarModalAnularGasto()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <h3>¿Anular este gasto?</h3>
+      <p><strong>{{ gastoAAnular.concepto }}</strong> — S/ {{ gastoAAnular.monto_total | formatNumber }} ({{ gastoAAnular.fecha | date:"dd/MM/yyyy" }})</p>
+      @if (reembolsosAsociadosCount(gastoAAnular) > 0) {
+        <p class="form-err">Este gasto tiene {{ reembolsosAsociadosCount(gastoAAnular) }} reembolso(s) que lo bloquean (asociados al gasto o recibidos por quien lo pagó). Anula esos reembolsos antes de poder anular el gasto.</p>
+      }
+      <p class="modal-hint">El gasto quedará marcado como anulado y dejará de contar en el reparto.</p>
+      <div class="mfooter">
+        <button type="button" class="btn-cancel" (click)="cerrarModalAnularGasto()">Cancelar</button>
+        <button type="button" class="btn-del" (click)="anularGasto()" [disabled]="deletingGasto">{{ deletingGasto ? 'Anulando...' : 'Anular' }}</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal confirmar anular reembolso -->
+@if (reembolsoAAnular) {
+  <div class="overlay" (click)="cerrarModalAnularReembolso()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <h3>¿Anular este reembolso?</h3>
+      <p><strong>{{ reembolsoAAnular.de_nombre }} → {{ reembolsoAAnular.para_nombre }}</strong> — S/ {{ reembolsoAAnular.monto | formatNumber }} ({{ reembolsoAAnular.fecha | date:"dd/MM/yyyy" }})</p>
+      <p class="modal-hint">El reembolso quedará marcado como anulado y dejará de contar en el reparto.</p>
+      <div class="mfooter">
+        <button type="button" class="btn-cancel" (click)="cerrarModalAnularReembolso()">Cancelar</button>
+        <button type="button" class="btn-del" (click)="anularReembolso()" [disabled]="deletingReembolso">{{ deletingReembolso ? 'Anulando...' : 'Anular' }}</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal confirmar eliminar categoría -->
+@if (categoriaAEliminar) {
+  <div class="overlay" (click)="cerrarModalEliminarCategoria()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <h3>¿Eliminar categoría?</h3>
+      <p>Se eliminará la categoría <strong>{{ categoriaAEliminar.nombre }}</strong>. Los gastos que la usen quedarán sin categoría.</p>
+      <div class="mfooter">
+        <button type="button" class="btn-cancel" (click)="cerrarModalEliminarCategoria()">Cancelar</button>
+        <button type="button" class="btn-del" (click)="eliminarCategoria()" [disabled]="deletingCategoria">{{ deletingCategoria ? 'Eliminando...' : 'Eliminar' }}</button>
+      </div>
+    </div>
+  </div>
+}

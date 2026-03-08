@@ -1,6 +1,7 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, inject, ChangeDetectorRef, ElementRef, ViewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { PagosService } from '../../services/pagos.service';
 import { PrestamosService } from '../../services/prestamos.service';
 import { NotificationService } from '../../services/notification.service';
@@ -12,7 +13,7 @@ import { ResumenDashboard } from '../../models/index';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, DatePipe, DecimalPipe, FormatNumberPipe, FormatPercentPipe, DashboardSkeletonComponent],
+  imports: [RouterLink, DatePipe, DecimalPipe, FormsModule, FormatNumberPipe, FormatPercentPipe, DashboardSkeletonComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -29,6 +30,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   prestamosVencidos = 0;
   loading = true;
   error = false;
+  /** Rango para el gráfico de barras: 0 = todos, 3/6/12 = últimos N meses */
+  rangoMeses: 3 | 6 | 12 | 0 = 12;
   private resizeObserver: ResizeObserver | null = null;
 
   /** Tooltip al pasar el mouse sobre gráficos */
@@ -96,6 +99,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.deudoresVisible += this.PAGE_SIZE;
   }
 
+  /** Meses a mostrar en el gráfico según rangoMeses (últimos N meses; 0 = todos) */
+  get porMesFiltrado(): ResumenDashboard['porMes'] {
+    if (!this.data?.porMes?.length) return [];
+    if (this.rangoMeses === 0) return this.data.porMes;
+    const hoy = new Date();
+    const desde = new Date(hoy.getFullYear(), hoy.getMonth() - this.rangoMeses, 1);
+    const desdeStr = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}`;
+    return this.data.porMes.filter(m => m.mes >= desdeStr);
+  }
+
+  onRangoChange(): void {
+    this.cdr.detectChanges();
+    setTimeout(() => this.drawCharts(), 50);
+  }
+
   /** Formatea monto para tooltips */
   formatMonto(value: number): string {
     return 'S/ ' + value.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -103,14 +121,15 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onBarMouseMove(event: MouseEvent): void {
     const canvas = this.barChartRef?.nativeElement;
-    if (!canvas || !this.data?.porMes?.length) return;
+    const porMes = this.porMesFiltrado;
+    if (!canvas || !porMes?.length) return;
     const rect = canvas.getBoundingClientRect();
     const pad = { top: 20, right: 10, bottom: 40, left: 60 };
     const w = canvas.offsetWidth || 600;
     const h = 200;
     const chartW = w - pad.left - pad.right;
     const chartH = h - pad.top - pad.bottom;
-    const barW = Math.max(10, chartW / this.data.porMes.length - 6);
+    const barW = Math.max(10, chartW / porMes.length - 6);
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     const barAreaTop = pad.top;
@@ -120,13 +139,13 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       this.cdr.detectChanges();
       return;
     }
-    const index = Math.floor((mouseX - pad.left) / (chartW / this.data.porMes.length));
-    if (index < 0 || index >= this.data.porMes.length) {
+    const index = Math.floor((mouseX - pad.left) / (chartW / porMes.length));
+    if (index < 0 || index >= porMes.length) {
       this.tooltip = null;
       this.cdr.detectChanges();
       return;
     }
-    const d = this.data.porMes[index];
+    const d = porMes[index];
     const mesLabel = this.formatMesLabel(d.mes);
     this.tooltip = {
       mes: mesLabel,
@@ -216,7 +235,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   drawBarChart(): void {
     const canvas = this.barChartRef?.nativeElement;
-    if (!canvas || !this.data?.porMes?.length) return;
+    const data = this.porMesFiltrado;
+    if (!canvas || !data?.length) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -227,7 +247,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     canvas.height = h * dpr;
     ctx.scale(dpr, dpr);
 
-    const data = this.data.porMes;
     const maxVal = Math.max(...data.map(d => d.total), 1);
     const pad = { top: 20, right: 10, bottom: 40, left: 60 };
     const chartW = w - pad.left - pad.right;

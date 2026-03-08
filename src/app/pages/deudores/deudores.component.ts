@@ -4,11 +4,22 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, Validators } from '@angular/forms';
 import { DeudoresService } from '../../services/deudores.service';
 import { NotificationService } from '../../services/notification.service';
+import { ExportService } from '../../services/export.service';
 import { ImagePreviewButtonComponent } from '../../shared/image-preview-button/image-preview-button.component';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
 import { FormatPercentPipe } from '../../shared/pipes/format-percent.pipe';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { Deudor } from '../../models/index';
+import { telefonoPeruOptional } from '../../shared/validators';
+
+/** Valida DNI peruano: opcional; si tiene valor debe ser exactamente 8 dígitos */
+function dniValidator(c: { value: unknown }) {
+  const v = c.value;
+  if (v == null || typeof v !== 'string') return null;
+  const t = String(v).trim();
+  if (t === '') return null;
+  return /^\d{8}$/.test(t) ? null : { dni: { value: t } };
+}
 
 @Component({
   selector: 'app-deudores',
@@ -22,6 +33,7 @@ export class DeudoresComponent implements OnInit {
   private fb = inject(FormBuilder);
   private cdr = inject(ChangeDetectorRef);
   private notify = inject(NotificationService);
+  private exportService = inject(ExportService);
 
   deudores: Deudor[] = [];
   filtered: Deudor[] = [];
@@ -58,8 +70,8 @@ export class DeudoresComponent implements OnInit {
   form = this.fb.group({
     nombre:    ['', Validators.required],
     apellidos: ['', Validators.required],
-    dni:       [''],
-    telefono:  [''],
+    dni:       ['', dniValidator],
+    telefono:  ['', telefonoPeruOptional()],
     email:     [''],
     direccion: [''],
     notas:     ['']
@@ -178,5 +190,36 @@ export class DeudoresComponent implements OnInit {
 
   diasDesde(fecha: string): number {
     return Math.floor((new Date().getTime() - new Date(fecha).getTime()) / 86400000);
+  }
+
+  exportExcel(): void {
+    const rows: (string | number)[][] = [
+      ['Nombre', 'Apellidos', 'DNI', 'Teléfono', 'Email', 'Total prestado', 'Total cobrado', 'Saldo pendiente', 'Último pago']
+    ];
+    this.filtered.forEach(d => {
+      rows.push([
+        d.nombre || '',
+        d.apellidos || '',
+        d.dni || '',
+        d.telefono || '',
+        d.email || '',
+        +(d.total_prestado ?? 0),
+        +(d.total_pagado ?? 0),
+        +(d.saldo_pendiente ?? 0),
+        d.ultimo_pago ? d.ultimo_pago.split('T')[0] : ''
+      ]);
+    });
+    this.exportService.downloadCsv(rows, 'deudores_' + new Date().toISOString().split('T')[0] + '.csv');
+    this.notify.success('Exportados ' + this.filtered.length + ' deudores');
+  }
+
+  exportPdf(): void {
+    const thead = '<tr><th>Nombre</th><th>Apellidos</th><th>DNI</th><th>Teléfono</th><th>Prestado</th><th>Cobrado</th><th>Pendiente</th><th>Último pago</th></tr>';
+    const tbody = this.filtered.map(d =>
+      `<tr><td>${d.nombre || ''}</td><td>${d.apellidos || ''}</td><td>${d.dni || ''}</td><td>${d.telefono || ''}</td><td>S/ ${(+(d.total_prestado ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>S/ ${(+(d.total_pagado ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>S/ ${(+(d.saldo_pendiente ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>${d.ultimo_pago ? d.ultimo_pago.split('T')[0] : '-'}</td></tr>`
+    ).join('');
+    const html = `<h1>Listado de deudores</h1><p>Generado el ${new Date().toLocaleDateString('es-PE')} — ${this.filtered.length} deudores</p><table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+    this.exportService.downloadPdfFromHtml(html, 'deudores_' + new Date().toISOString().split('T')[0] + '.pdf');
+    this.notify.success('Abre la ventana de impresión para guardar como PDF');
   }
 }

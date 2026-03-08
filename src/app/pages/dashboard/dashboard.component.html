@@ -62,8 +62,16 @@
 
       <!-- GRÁFICO DE BARRAS: cobros por mes -->
       <div class="card wide">
-        <h2 class="ctitle">Cobros últimos 12 meses</h2>
-        @if (data.porMes.length) {
+        <div class="chart-header">
+          <h2 class="ctitle">{{ rangoMeses === 0 ? 'Cobros por mes (todos)' : 'Cobros últimos ' + rangoMeses + ' meses' }}</h2>
+          <select class="rango-select" [(ngModel)]="rangoMeses" (ngModelChange)="onRangoChange()" [ngModelOptions]="{standalone: true}" aria-label="Rango de meses">
+            <option [ngValue]="3">Últimos 3 meses</option>
+            <option [ngValue]="6">Últimos 6 meses</option>
+            <option [ngValue]="12">Últimos 12 meses</option>
+            <option [ngValue]="0">Todos</option>
+          </select>
+        </div>
+        @if (porMesFiltrado.length) {
           <div class="chart-wrap" (mousemove)="onBarMouseMove($event)" (mouseleave)="onBarMouseLeave()">
             <canvas #barChart class="chart-canvas" role="img" aria-label="Gráfico de cobros por mes"></canvas>
             @if (tooltip && tooltip.mes != null) {
@@ -73,7 +81,7 @@
             }
           </div>
         } @else {
-          <div class="empty-chart">Sin datos de cobros</div>
+          <div class="empty-chart">Sin datos en el rango seleccionado</div>
         }
       </div>
 

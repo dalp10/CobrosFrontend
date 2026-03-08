@@ -2,6 +2,34 @@
   <button type="button" class="menu-toggle" (click)="toggleSidebar()" aria-label="Abrir menú">☰</button>
   <nav class="sidebar" [class.open]="sidebarOpen">
     <div class="logo">Cobros</div>
+    <div class="notif-wrap">
+      <button type="button" class="notif-btn" (click)="toggleNotif()" [attr.aria-expanded]="notifOpen" aria-label="Centro de notificaciones">
+        🔔
+        @if (totalAlertas > 0) {
+          <span class="notif-badge">{{ totalAlertas }}</span>
+        }
+      </button>
+      @if (notifOpen) {
+        <div class="notif-panel">
+          <div class="notif-head">Notificaciones</div>
+          @if (alertasVencidos > 0) {
+            <a (click)="navAndCloseNotif('prestamos')" class="notif-item">
+              <span class="notif-ico">⚠️</span>
+              <span>{{ alertasVencidos }} préstamo{{ alertasVencidos !== 1 ? 's' : '' }} en mora</span>
+            </a>
+          }
+          @if (alertasDeudoresSinPago > 0) {
+            <a (click)="navAndCloseNotif('alertas')" class="notif-item">
+              <span class="notif-ico">👤</span>
+              <span>{{ alertasDeudoresSinPago }} deudor{{ alertasDeudoresSinPago !== 1 ? 'es' : '' }} sin pago reciente</span>
+            </a>
+          }
+          @if (totalAlertas === 0) {
+            <div class="notif-empty">Sin alertas pendientes</div>
+          }
+        </div>
+      }
+    </div>
     <ul class="nav">
       <li><a (click)="nav('dashboard')" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}">Dashboard</a></li>
       <li><a (click)="nav('deudores')" routerLinkActive="active">Deudores</a></li>
@@ -16,6 +44,7 @@
           <span class="nav-badge" aria-label="{{ totalAlertas }} alertas">{{ totalAlertas }}</span>
         }
       </a></li>
+      <li><a (click)="nav('reparto')" routerLinkActive="active">Reparto</a></li>
       @if (auth.currentUser(); as u) {
         @if (u.rol === 'admin') {
           <li><a (click)="nav('usuarios')" routerLinkActive="active">Usuarios</a></li>

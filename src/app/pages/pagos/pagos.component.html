@@ -22,7 +22,10 @@
     </div>
     <div class="filtro-group">
       <label class="filtro-lbl">Hasta</label>
-      <input type="date" formControlName="hasta" aria-label="Fecha hasta">
+      <input type="date" formControlName="hasta" aria-label="Fecha hasta" [class.filtro-err]="filters.get('hasta')?.invalid && filters.get('hasta')?.touched">
+      @if (filters.get('hasta')?.hasError('fechaHastaMenor')) {
+        <span class="filtro-err-msg">Hasta debe ser &ge; Desde</span>
+      }
     </div>
     <div class="filtro-group">
       <label class="filtro-lbl">Método</label>
@@ -35,6 +38,10 @@
         <option value="pandero">Pandero</option>
       </select>
     </div>
+    <div class="filtro-group">
+      <label class="filtro-lbl">Concepto</label>
+      <input type="text" formControlName="concepto" (input)="aplicarFiltroConcepto()" placeholder="Buscar en concepto" aria-label="Filtrar por concepto">
+    </div>
     <div class="filtro-actions">
       <button type="submit" class="btn btn-filtrar" aria-label="Aplicar filtros">Filtrar</button>
       <button type="button" class="btn btn-excel" (click)="exportExcel()" aria-label="Exportar pagos a Excel">📊 Excel</button>
@@ -44,7 +51,7 @@
 
   @if (!loading && pagos.length) {
     <div class="totbar">
-      <span>{{ pagos.length }} pago{{ pagos.length !== 1 ? 's' : '' }}</span>
+      <span>{{ pagosOrdenados.length }} pago{{ pagosOrdenados.length !== 1 ? 's' : '' }}</span>
       <span class="tot">Total: S/ {{ total | formatNumber }}</span>
     </div>
   }
@@ -88,6 +95,12 @@
         </tbody>
       </table>
     </div>
+    @if (pagos.length && !pagosOrdenados.length) {
+      <div class="empty empty-inline">
+        <p class="empty-title">Ningún pago coincide con el concepto buscado</p>
+        <button type="button" class="btn-link" (click)="filters.patchValue({ concepto: '' })">Limpiar concepto</button>
+      </div>
+    }
     @if (hayMasPagos) {
       <div class="load-more-wrap">
         <button type="button" class="btn btn-load-more" (click)="cargarMas()" [disabled]="loadingMore" aria-label="Cargar más pagos">
@@ -124,11 +137,16 @@
       <form [formGroup]="pagoForm" class="modal-form">
         <div class="form-grid">
           <div class="form-group">
-            <label>Deudor</label>
-            <input type="text" formControlName="deudor_nombre" placeholder="Nombre del deudor">
+            <label>Deudor <span class="req">*</span></label>
+            <select formControlName="deudor_id" aria-label="Seleccionar deudor">
+              <option [ngValue]="null">Seleccionar...</option>
+              @for (d of deudores; track d.id) {
+                <option [ngValue]="d.id">{{ d.nombre }} {{ d.apellidos || '' }}</option>
+              }
+            </select>
           </div>
           <div class="form-group">
-            <label>Fecha de Pago</label>
+            <label>Fecha de Pago <span class="req">*</span></label>
             <input type="date" formControlName="fecha_pago">
           </div>
           <div class="form-group">
@@ -136,8 +154,11 @@
             <input type="text" formControlName="concepto" placeholder="Descripción del pago">
           </div>
           <div class="form-group">
-            <label>Monto (S/)</label>
+            <label>Monto (S/) <span class="req">*</span></label>
             <input type="number" formControlName="monto" placeholder="0.00" step="0.01" min="0">
+            @if (pagoMontoExcedeSaldoDeudor) {
+              <span class="ferr-warn">⚠️ El monto supera el saldo del deudor (S/ {{ saldoDeudorSeleccionado | formatNumber }}). Puedes registrar igual si es correcto.</span>
+            }
           </div>
           <div class="form-group">
             <label>Método de Pago</label>
@@ -152,6 +173,25 @@
           <div class="form-group">
             <label>N.º operación</label>
             <input type="text" formControlName="numero_operacion" placeholder="Opcional">
+          </div>
+          <!-- Comprobante + OCR -->
+          <div class="form-group form-group-full">
+            <label>Comprobante <span class="hint">(PNG/JPG max 5MB)</span></label>
+            <div class="upload-area" (click)="fileInput.click()" (dragover)="$event.preventDefault()" (drop)="onDrop($event)" [class.upload-has-file]="imagenPreview">
+              @if (imagenPreview) {
+                <img [src]="imagenPreview" class="preview" alt="Vista previa">
+                <button type="button" class="remove-img" (click)="removeImage($event)">✕ Quitar</button>
+                <button type="button" class="btn-ocr" (click)="extraerDatosPago(); $event.stopPropagation()" [disabled]="ocrLoading">
+                  {{ ocrLoading ? 'Leyendo imagen…' : '📄 Extraer datos' }}
+                </button>
+              } @else {
+                <span class="upload-icon">📎</span>
+                <span class="upload-txt">Click o arrastra una imagen</span>
+                <span class="upload-sub">PNG, JPG hasta 5MB</span>
+              }
+            </div>
+            @if (imgError) { <span class="ferr">{{ imgError }}</span> }
+            <input #fileInput type="file" accept="image/png,image/jpg,image/jpeg" style="display:none" (change)="onFileChange($event)">
           </div>
         </div>
       </form>

@@ -20,6 +20,7 @@ export const routes: Routes = [
       { path: "pagos", title: "Pagos", runGuardsAndResolvers: "always", loadComponent: () => import("./pages/pagos/pagos.component").then(m => m.PagosComponent) },
       { path: "prestamos", title: "Préstamos", runGuardsAndResolvers: "always", loadComponent: () => import("./pages/prestamos/prestamos.component").then(m => m.PrestamosComponent) },
       { path: "alertas", title: "Alertas", runGuardsAndResolvers: "always", loadComponent: () => import("./pages/alertas/alertas.component").then(m => m.AlertasComponent) },
+      { path: "reparto", title: "Reparto", runGuardsAndResolvers: "always", loadComponent: () => import("./pages/reparto/reparto.component").then(m => m.RepartoComponent) },
       { path: "usuarios", title: "Usuarios", canActivate: [roleGuard(['admin'])], runGuardsAndResolvers: "always", loadComponent: () => import("./pages/usuarios/usuarios.component").then(m => m.UsuariosComponent) },
     ],
   },

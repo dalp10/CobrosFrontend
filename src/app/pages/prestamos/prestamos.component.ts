@@ -124,4 +124,21 @@ export class PrestamosComponent implements OnInit {
     rows.push(['', '', 'TOTAL', this.totalMontoOriginal, '', this.totalPendiente, '', '']);
     this.exportService.downloadCsv(rows, 'prestamos_' + new Date().toISOString().split('T')[0] + '.csv');
   }
+
+  limpiarFiltros(): void {
+    this.searchTerm = '';
+    this.filtroEstado = 'todos';
+    this.filtroTipo = '';
+    this.prestamosVisible = this.PAGE_SIZE;
+    this.filtrar();
+  }
+
+  exportPdf(): void {
+    const thead = '<tr><th>Deudor</th><th>Tipo</th><th>Descripción</th><th>Monto</th><th>Cobrado</th><th>Pendiente</th><th>Inicio</th><th>Estado</th></tr>';
+    const tbody = this.filtered.map(p =>
+      `<tr><td>${p.deudor_nombre || ''}</td><td>${p.tipo || ''}</td><td>${p.descripcion || ''}</td><td>S/ ${(+(p.monto_original ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>S/ ${(+(p.total_pagado ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>S/ ${(+(p.saldo_pendiente ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>${p.fecha_inicio ? p.fecha_inicio.split('T')[0] : ''}</td><td>${p.estado || ''}</td></tr>`
+    ).join('');
+    const html = `<h1>Listado de préstamos</h1><p>Generado el ${new Date().toLocaleDateString('es-PE')} — ${this.filtered.length} préstamos</p><table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+    this.exportService.downloadPdfFromHtml(html, 'prestamos_' + new Date().toISOString().split('T')[0] + '.pdf');
+  }
 }

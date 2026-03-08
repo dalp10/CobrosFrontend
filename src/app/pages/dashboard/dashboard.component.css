@@ -148,6 +148,27 @@
   color: #e8ecf4;
 }
 
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.chart-header .ctitle { margin-bottom: 0; }
+.rango-select {
+  background: #0d0f14;
+  border: 1px solid #2e3450;
+  border-radius: 8px;
+  color: #e8ecf4;
+  padding: 6px 12px;
+  font-size: .78rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.rango-select:focus { outline: none; border-color: #4f8ef7; }
+
 /* ── CHARTS ─────────────────────────────────────── */
 .chart-wrap {
   position: relative;

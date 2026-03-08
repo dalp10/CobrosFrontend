@@ -35,6 +35,25 @@
 }
 .btn-new:active { transform: scale(0.98); }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-export {
+  background: rgba(34, 211, 160, .15);
+  color: #22d3a0;
+  border: 1px solid rgba(34, 211, 160, .5);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: .82rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .2s, border-color .2s;
+}
+.btn-export:hover { background: rgba(34, 211, 160, .25); }
+
 /* ── ALERTAS ─────────────────────────────────────── */
 .alertas-box {
   background: rgba(247, 201, 72, .06);

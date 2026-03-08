@@ -1,7 +1,11 @@
 <div class="page">
   <div class="topbar">
     <h1 class="title">Deudores</h1>
-    <button class="btn-new" (click)="openModal()">+ Nuevo deudor</button>
+    <div class="topbar-actions">
+      <button type="button" class="btn-export" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
+      <button type="button" class="btn-export" (click)="exportPdf()" aria-label="Exportar a PDF">📄 PDF</button>
+      <button class="btn-new" (click)="openModal()">+ Nuevo deudor</button>
+    </div>
   </div>
 
   <!-- ALERTAS: solo un lugar para el selector de días -->
@@ -135,13 +139,15 @@
             <input type="text" formControlName="apellidos" placeholder="Perez Garcia">
             @if (fi('apellidos')) { <span class="ferr">Los apellidos son obligatorios</span> }
           </div>
-          <div class="f">
-            <label>DNI</label>
-            <input type="text" formControlName="dni" placeholder="12345678" maxlength="8">
+          <div class="f" [class.has-error]="fi('dni')">
+            <label>DNI <span class="hint">(8 dígitos)</span></label>
+            <input type="text" formControlName="dni" placeholder="12345678" maxlength="8" inputmode="numeric" pattern="[0-9]*">
+            @if (fi('dni')) { <span class="ferr">El DNI debe tener exactamente 8 dígitos</span> }
           </div>
-          <div class="f">
+          <div class="f" [class.has-error]="fi('telefono')">
             <label>Telefono</label>
             <input type="text" formControlName="telefono" placeholder="999888777">
+            @if (fi('telefono')) { <span class="ferr">Teléfono inválido. Use 9 dígitos (ej. 987654321) o 10 con 0</span> }
           </div>
           <div class="f">
             <label>Email</label>

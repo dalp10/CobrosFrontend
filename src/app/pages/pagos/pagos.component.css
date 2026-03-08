@@ -46,6 +46,9 @@
   font-weight: 600;
 }
 
+.filtro-err { border-color: #f75f5f !important; }
+.filtro-err-msg { font-size: .7rem; color: #f75f5f; }
+
 .filtros input,
 .filtros select {
   background: #0d0f14;
@@ -273,6 +276,8 @@ tr:last-child td { border-bottom: none; }
 .empty-title { font-weight: 700; font-size: 1rem; color: #e8ecf4; margin: 0 0 8px 0; }
 .empty-hint { font-size: .82rem !important; margin-bottom: 16px !important; font-weight: 400 !important; }
 
+.empty-inline { padding: 20px 24px; margin-top: 12px; }
+
 .empty .btn-link, .empty .btn-link-sec { margin: 4px 8px 4px 0; }
 
 .btn-link-sec {
@@ -399,6 +404,37 @@ tr:last-child td { border-bottom: none; }
   border-color: #4f8ef7;
   box-shadow: 0 0 0 3px rgba(79, 142, 247, .12);
 }
+
+.form-group-full { grid-column: 1 / -1; }
+.form-group .hint { font-size: .65rem; color: #7a839e; font-weight: 400; text-transform: none; }
+.form-group .ferr { font-size: .7rem; color: #f75f5f; margin-top: 4px; }
+.form-group .ferr-warn { font-size: .7rem; color: #f7c948; margin-top: 4px; display: block; }
+
+/* Upload + OCR */
+.upload-area {
+  background: #0d0f14;
+  border: 2px dashed #2e3450;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.upload-area:hover { border-color: #4f8ef7; }
+.upload-has-file { border-color: #4f8ef7; border-style: solid; }
+.upload-icon { font-size: 1.4rem; }
+.upload-txt { font-size: .82rem; color: #e8ecf4; }
+.upload-sub { font-size: .68rem; color: #7a839e; }
+.preview { max-height: 120px; max-width: 100%; border-radius: 6px; object-fit: contain; }
+.remove-img { background: rgba(247,95,95,.15); color: #f75f5f; border: 1px solid #f75f5f; border-radius: 6px; padding: 4px 10px; font-size: .7rem; cursor: pointer; margin-top: 6px; font-family: inherit; }
+.btn-ocr { background: rgba(79,142,247,.2); color: #4f8ef7; border: 1px solid #4f8ef7; border-radius: 6px; padding: 4px 10px; font-size: .7rem; cursor: pointer; margin-top: 6px; margin-left: 6px; font-family: inherit; }
+.btn-ocr:disabled { opacity: .7; cursor: not-allowed; }
+.req { color: #f75f5f; }
 
 /* ─── DIVISOR ─────────────────────────────────────────── */
 .preview-divider {

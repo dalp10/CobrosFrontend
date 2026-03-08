@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectorRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, inject, ChangeDetectorRef, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
@@ -14,6 +14,7 @@ import { ImagePreviewButtonComponent } from '../../shared/image-preview-button/i
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { Deudor, Pago, Prestamo, Cuota } from '../../models/index';
+import { fechaNoFutura, montoMax, fechaFinMin, tasaInteresRango } from '../../shared/validators';
 
 @Component({
   selector: 'app-deudor-detail',
@@ -22,7 +23,8 @@ import { Deudor, Pago, Prestamo, Cuota } from '../../models/index';
   templateUrl: './deudor-detail.component.html',
   styleUrl: './deudor-detail.component.css'
 })
-export class DeudorDetailComponent implements OnInit {
+export class DeudorDetailComponent implements OnInit, AfterViewInit {
+  @ViewChild('evolucionChart') evolucionChartRef!: ElementRef<HTMLCanvasElement>;
   private route = inject(ActivatedRoute);
   private deudoresService = inject(DeudoresService);
   private pagosService = inject(PagosService);
@@ -82,31 +84,84 @@ export class DeudorDetailComponent implements OnInit {
     return this.totalPrestado - this.totalCobrado;
   }
 
+  /** Puntos para el gráfico de evolución del saldo (fecha, saldo acumulado) */
+  get evolucionSaldo(): { fecha: string; saldo: number }[] {
+    const d = this.deudor;
+    if (!d?.prestamos?.length && !d?.pagos?.length) return [];
+    const dates = new Set<string>();
+    (d.prestamos || []).forEach(p => { if (p.fecha_inicio) dates.add(p.fecha_inicio.split('T')[0]); });
+    (d.pagos || []).forEach(p => { if (p.fecha_pago) dates.add(p.fecha_pago.split('T')[0]); });
+    const sorted = Array.from(dates).sort();
+    if (sorted.length === 0) return [];
+    const points: { fecha: string; saldo: number }[] = [];
+    for (const fecha of sorted) {
+      const prestadoHasta = (d.prestamos || []).reduce((s, p) => s + (p.fecha_inicio && p.fecha_inicio.split('T')[0] <= fecha ? +(p.monto_original ?? 0) : 0), 0);
+      const pagadoHasta = (d.pagos || []).reduce((s, p) => s + (p.fecha_pago && p.fecha_pago.split('T')[0] <= fecha ? +(p.monto ?? 0) : 0), 0);
+      points.push({ fecha, saldo: prestadoHasta - pagadoHasta });
+    }
+    const hoy = new Date().toISOString().split('T')[0];
+    if (points.length && points[points.length - 1].fecha < hoy) {
+      points.push({ fecha: hoy, saldo: this.saldoPendiente });
+    }
+    return points;
+  }
+
   pagoForm = this.fb.group({
     prestamo_id: [null],
-    fecha_pago: [new Date().toISOString().split('T')[0], Validators.required],
-    monto: [null, [Validators.required, Validators.min(0.01)]],
+    fecha_pago: [new Date().toISOString().split('T')[0], [Validators.required, fechaNoFutura()]],
+    monto: [null, [Validators.required, Validators.min(0.01), montoMax(999_999.99)]],
     metodo_pago: ['', Validators.required],
     numero_operacion: [''], concepto: ['']
   });
 
   prestamoForm = this.fb.group({
     tipo: ['', Validators.required],
-    monto_original: [null, [Validators.required, Validators.min(0.01)]],
+    monto_original: [null, [Validators.required, Validators.min(0.01), montoMax(10_000_000)]],
     fecha_inicio: [new Date().toISOString().split('T')[0], Validators.required],
-    fecha_fin: [''], tasa_interes: [0], cuota_mensual: [null],
+    fecha_fin: ['', fechaFinMin('fecha_inicio')], tasa_interes: [0, tasaInteresRango()], cuota_mensual: [null],
     total_cuotas: [1], banco: [''], numero_operacion: [''],
     descripcion: [''], notas: ['']
   });
 
   editPagoForm = this.fb.group({
-    fecha_pago: ['', Validators.required],
-    monto: [0 as number | null, [Validators.required, Validators.min(0.01)]],
+    fecha_pago: ['', [Validators.required, fechaNoFutura()]],
+    monto: [0 as number | null, [Validators.required, Validators.min(0.01), montoMax(999_999.99)]],
     metodo_pago: ['', Validators.required],
     numero_operacion: [''], concepto: ['']
   });
 
-  ngOnInit(): void { this.load(); }
+  /** Préstamo seleccionado en el formulario de pago */
+  get prestamoSeleccionadoPago(): Prestamo | null {
+    const id = this.pagoForm.get('prestamo_id')?.value;
+    if (id == null || !this.deudor?.prestamos?.length) return null;
+    return this.deudor.prestamos.find(p => p.id === id) ?? null;
+  }
+
+  /** Saldo pendiente del préstamo seleccionado (0 si no hay préstamo) */
+  get saldoPrestamoSeleccionado(): number {
+    const p = this.prestamoSeleccionadoPago;
+    return p != null ? +(p.saldo_pendiente ?? 0) : 0;
+  }
+
+  /** True si el monto del pago supera el saldo del préstamo seleccionado (advertencia) */
+  get pagoMontoExcedeSaldo(): boolean {
+    const monto = Number(this.pagoForm.get('monto')?.value);
+    if (!monto || isNaN(monto)) return false;
+    const saldo = this.saldoPrestamoSeleccionado;
+    if (saldo <= 0) return false; // sin préstamo o ya pagado, no advertir
+    return monto > saldo;
+  }
+
+  ngOnInit(): void {
+    this.load();
+    this.prestamoForm.get('fecha_inicio')?.valueChanges?.subscribe(() => {
+      this.prestamoForm.get('fecha_fin')?.updateValueAndValidity();
+    });
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.drawEvolucionChart(), 200);
+  }
 
   load(): void {
     this.loading = true;
@@ -115,7 +170,7 @@ export class DeudorDetailComponent implements OnInit {
       next: (d) => {
         this.deudor = d;
         let pending = 2;
-        const done = () => { pending--; if (pending === 0) { this.loading = false; this.cdr.detectChanges(); } };
+        const done = () => { pending--; if (pending === 0) { this.loading = false; this.cdr.detectChanges(); setTimeout(() => this.drawEvolucionChart(), 100); } };
         this.pagosService.getAll({ deudor_id: id, limit: 2000 }).subscribe({
           next: (r) => { if (this.deudor) this.deudor = { ...this.deudor, pagos: r.data || [] }; done(); this.cdr.detectChanges(); },
           error: () => done()
@@ -389,6 +444,44 @@ export class DeudorDetailComponent implements OnInit {
         setTimeout(() => { this.pagoOk = false; this.cdr.detectChanges(); }, 3000);
       },
       error: (e) => { this.saving = false; this.pagoErr = e.error?.error || 'Error'; this.cdr.detectChanges(); this.notify.error(this.pagoErr); }
+    });
+  }
+
+  drawEvolucionChart(): void {
+    const canvas = this.evolucionChartRef?.nativeElement;
+    const points = this.evolucionSaldo;
+    if (!canvas || !points.length) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.offsetWidth || 400;
+    const h = 180;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.scale(dpr, dpr);
+    const pad = { top: 16, right: 10, bottom: 32, left: 56 };
+    const chartW = w - pad.left - pad.right;
+    const chartH = h - pad.top - pad.bottom;
+    const maxSaldo = Math.max(...points.map(p => p.saldo), 1);
+    const minSaldo = Math.min(0, ...points.map(p => p.saldo));
+    const range = maxSaldo - minSaldo || 1;
+    ctx.strokeStyle = '#4f8ef7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach((p, i) => {
+      const x = pad.left + (chartW / (points.length - 1 || 1)) * i;
+      const y = pad.top + chartH - ((p.saldo - minSaldo) / range) * chartH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.fillStyle = '#7a839e';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    points.forEach((p, i) => {
+      const x = pad.left + (chartW / (points.length - 1 || 1)) * i;
+      const label = p.fecha.slice(0, 7);
+      ctx.fillText(label, x, h - pad.bottom + 12);
     });
   }
 
