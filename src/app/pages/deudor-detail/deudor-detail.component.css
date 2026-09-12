@@ -117,10 +117,62 @@ h1 {
   font-weight: 700;
 }
 
+.deudor-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 20px 0 16px;
+  padding: 6px 0 14px;
+  border-bottom: 1px solid #2e3450;
+}
+.deudor-tab {
+  padding: 10px 18px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #9ca3b8;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+.deudor-tab:hover {
+  color: #e8ecf4;
+  background: rgba(46, 52, 80, 0.5);
+}
+.deudor-tab.active {
+  color: #5b9aff;
+  background: rgba(79, 142, 247, 0.12);
+  border-color: rgba(79, 142, 247, 0.35);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
 .sec-title {
   margin: 24px 0 12px;
   padding-bottom: 8px;
 }
+
+.compromiso-card {
+  background: #1e2230;
+  border: 1px solid #2e3450;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 8px;
+}
+.compromiso-grid { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 600px) { .compromiso-grid { grid-template-columns: 1fr; } }
+.btn-compromiso {
+  background: linear-gradient(135deg, #0d9488, #0f766e);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-compromiso:hover:not(:disabled) { opacity: .95; }
+.btn-compromiso:disabled { opacity: .6; cursor: not-allowed; }
 
 .evolucion-card {
   background: #1e2230;
@@ -539,6 +591,30 @@ select option { background: #1e2230; }
 .btn-save:hover:not(:disabled) { opacity: .95; }
 .btn-save:active:not(:disabled) { transform: scale(0.98); }
 .btn-save:disabled, .btn-del:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ── Reprogramación de cronograma ──────────────────── */
+.reprogramar-sec { margin-top: 16px; padding-top: 16px; border-top: 1px solid #2e3450; }
+
+.btn-toggle-reprog {
+  background: none;
+  border: 1px solid #2e3450;
+  color: #4f8ef7;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .2s, color .2s;
+}
+.btn-toggle-reprog:hover { border-color: #4f8ef7; color: #7c5cfc; }
+
+.reprogramar-hint {
+  font-size: .78rem;
+  color: #7a839e;
+  margin: 12px 0;
+  line-height: 1.4;
+}
 
 .btn-del {
   background: rgba(247, 95, 95, .15);

@@ -1,139 +1,200 @@
-<div class="page">
-  <header class="page-header">
-    <h1 class="title">Pagos</h1>
-    <button type="button" class="btn btn-nuevo" (click)="abrirCrear()" aria-label="Nuevo pago">
-      <span class="btn-icon">＋</span> Nuevo pago
-    </button>
-  </header>
-
-  <form [formGroup]="filters" (ngSubmit)="buscar()" class="filtros">
-    <div class="filtro-group">
-      <label class="filtro-lbl">Deudor</label>
-      <select formControlName="deudor_id" aria-label="Filtrar por deudor">
-        <option value="">Todos</option>
-        @for (d of deudores; track d.id) {
-          <option [value]="d.id">{{ d.nombre }} {{ d.apellidos || '' }}</option>
-        }
-      </select>
-    </div>
-    <div class="filtro-group">
-      <label class="filtro-lbl">Desde</label>
-      <input type="date" formControlName="desde" aria-label="Fecha desde">
-    </div>
-    <div class="filtro-group">
-      <label class="filtro-lbl">Hasta</label>
-      <input type="date" formControlName="hasta" aria-label="Fecha hasta" [class.filtro-err]="filters.get('hasta')?.invalid && filters.get('hasta')?.touched">
-      @if (filters.get('hasta')?.hasError('fechaHastaMenor')) {
-        <span class="filtro-err-msg">Hasta debe ser &ge; Desde</span>
+<div class="page pagos-page">
+  <header class="page-head">
+    <div class="page-head-text">
+      <h1 class="title">Pagos</h1>
+      @if (!loading) {
+        <p class="subtitle">Historial y registro de cobros. {{ pagosOrdenados.length }} pago{{ pagosOrdenados.length !== 1 ? 's' : '' }} en este filtro.</p>
+      } @else {
+        <p class="subtitle">Cargando pagos…</p>
       }
     </div>
-    <div class="filtro-group">
-      <label class="filtro-lbl">Método</label>
-      <select formControlName="metodo" aria-label="Método de pago">
-        <option value="">Todos</option>
-        <option value="efectivo">Efectivo</option>
-        <option value="yape">Yape</option>
-        <option value="plin">Plin</option>
-        <option value="transferencia">Transferencia</option>
-        <option value="pandero">Pandero</option>
-      </select>
+    <div class="page-head-actions">
+      @if (!loading) {
+        <button type="button" class="btn-refresh" (click)="buscar()" title="Actualizar lista" aria-label="Actualizar lista de pagos">
+          <svg class="btn-refresh-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Actualizar
+        </button>
+      }
+      <button type="button" class="btn-nuevo" (click)="abrirCrear()" aria-label="Nuevo pago">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo pago
+      </button>
     </div>
-    <div class="filtro-group">
-      <label class="filtro-lbl">Concepto</label>
-      <input type="text" formControlName="concepto" (input)="aplicarFiltroConcepto()" placeholder="Buscar en concepto" aria-label="Filtrar por concepto">
-    </div>
-    <div class="filtro-actions">
-      <button type="submit" class="btn btn-filtrar" aria-label="Aplicar filtros">Filtrar</button>
-      <button type="button" class="btn btn-excel" (click)="exportExcel()" aria-label="Exportar pagos a Excel">📊 Excel</button>
-      <button type="button" class="btn-clr" (click)="limpiar()" aria-label="Limpiar filtros">Limpiar</button>
-    </div>
-  </form>
+  </header>
 
   @if (!loading && pagos.length) {
-    <div class="totbar">
-      <span>{{ pagosOrdenados.length }} pago{{ pagosOrdenados.length !== 1 ? 's' : '' }}</span>
-      <span class="tot">Total: S/ {{ total | formatNumber }}</span>
-    </div>
+    <section class="stats" role="group" aria-label="Resumen de pagos">
+      <div class="scard scard-neutral">
+        <div class="scard-icon scard-icon-neutral">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+        </div>
+        <div class="scard-body">
+          <span class="slbl">Pagos</span>
+          <span class="sval">{{ pagosOrdenados.length }}</span>
+        </div>
+      </div>
+      <div class="scard scard-green">
+        <div class="scard-icon scard-icon-green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="scard-body">
+          <span class="slbl">Total cobrado</span>
+          <span class="sval">S/ {{ total | formatNumber }}</span>
+        </div>
+      </div>
+    </section>
   }
+
+  <section class="card filtros-card" aria-label="Filtros">
+    <h2 class="card-title">Filtros</h2>
+    <form [formGroup]="filters" (ngSubmit)="buscar()" class="filtros">
+      <div class="filtro-row">
+        <div class="filtro-group">
+          <label class="filtro-lbl">Deudor</label>
+          <select formControlName="deudor_id" aria-label="Filtrar por deudor">
+            <option value="">Todos</option>
+            @for (d of deudores; track d.id) {
+              <option [value]="d.id">{{ d.nombre }} {{ d.apellidos || '' }}</option>
+            }
+          </select>
+        </div>
+        <div class="filtro-group">
+          <label class="filtro-lbl">Desde</label>
+          <input type="date" formControlName="desde" aria-label="Fecha desde">
+        </div>
+        <div class="filtro-group">
+          <label class="filtro-lbl">Hasta</label>
+          <input type="date" formControlName="hasta" aria-label="Fecha hasta" [class.filtro-err]="filters.get('hasta')?.invalid && filters.get('hasta')?.touched">
+          @if (filters.get('hasta')?.hasError('fechaHastaMenor')) {
+            <span class="filtro-err-msg">Hasta debe ser ≥ Desde</span>
+          }
+        </div>
+        <div class="filtro-group">
+          <label class="filtro-lbl">Método</label>
+          <select formControlName="metodo" aria-label="Método de pago">
+            <option value="">Todos</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="yape">Yape</option>
+            <option value="plin">Plin</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="pandero">Pandero</option>
+          </select>
+        </div>
+      </div>
+      <div class="filtro-row filtro-row-search">
+        <div class="search-inner">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" formControlName="concepto" (input)="aplicarFiltroConcepto()" placeholder="Buscar en concepto…" aria-label="Filtrar por concepto">
+        </div>
+        <div class="filtro-actions">
+          <button type="submit" class="btn-filtrar" aria-label="Aplicar filtros">Filtrar</button>
+          <button type="button" class="btn-export btn-excel" (click)="exportExcel()" aria-label="Exportar a Excel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+            Excel
+          </button>
+          <button type="button" class="btn-clr" (click)="limpiar()" aria-label="Limpiar filtros">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            Limpiar
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
 
   @if (loading) {
     <app-skeleton [rows]="8" [cells]="7" />
   }
 
   @if (!loading && pagos.length) {
-    <div class="twrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col"><button type="button" class="th-sort" (click)="setSort('fecha')" [attr.aria-sort]="sortBy === 'fecha' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Fecha {{ sortBy === 'fecha' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
-            <th scope="col"><button type="button" class="th-sort" (click)="setSort('deudor')" [attr.aria-sort]="sortBy === 'deudor' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Deudor {{ sortBy === 'deudor' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
-            <th scope="col">Concepto</th>
-            <th scope="col"><button type="button" class="th-sort" (click)="setSort('monto')" [attr.aria-sort]="sortBy === 'monto' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Monto {{ sortBy === 'monto' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
-            <th scope="col"><button type="button" class="th-sort" (click)="setSort('metodo')" [attr.aria-sort]="sortBy === 'metodo' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Método {{ sortBy === 'metodo' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
-            <th scope="col"></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (p of pagosOrdenados; track p.id; let i = $index) {
+    <section class="card card-table" aria-label="Listado de pagos">
+      <h2 class="card-title">Listado de pagos</h2>
+      <div class="twrap">
+        <table>
+          <thead>
             <tr>
-              <td class="mu">{{ i + 1 }}</td>
-              <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
-              <td>
-                <a [routerLink]="['/deudores', p.deudor_id]" class="dlink">
-                  {{ p.deudor_nombre || '-' }}
-                </a>
-              </td>
-              <td>{{ p.concepto || '-' }}</td>
-              <td class="amt mo">S/ {{ p.monto | formatNumber }}</td>
-              <td><span [class]="'mb m-' + p.metodo_pago">{{ p.metodo_pago }}</span></td>
-              <td>
-                <button type="button" class="btn-edit" (click)="abrirEditar(p)" title="Editar pago" aria-label="Editar pago">✏️</button>
-              </td>
+              <th scope="col">#</th>
+              <th scope="col"><button type="button" class="th-sort" (click)="setSort('fecha')" [attr.aria-sort]="sortBy === 'fecha' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Fecha {{ sortBy === 'fecha' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+              <th scope="col"><button type="button" class="th-sort" (click)="setSort('deudor')" [attr.aria-sort]="sortBy === 'deudor' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Deudor {{ sortBy === 'deudor' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+              <th scope="col">Concepto</th>
+              <th scope="col"><button type="button" class="th-sort" (click)="setSort('monto')" [attr.aria-sort]="sortBy === 'monto' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Monto {{ sortBy === 'monto' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+              <th scope="col"><button type="button" class="th-sort" (click)="setSort('metodo')" [attr.aria-sort]="sortBy === 'metodo' ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">Método {{ sortBy === 'metodo' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}</button></th>
+              <th scope="col"></th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (p of pagosOrdenados; track p.id; let i = $index) {
+              <tr>
+                <td class="mu">{{ i + 1 }}</td>
+                <td class="mo">{{ p.fecha_pago | date:"dd/MM/yyyy" }}</td>
+                <td>
+                  <a [routerLink]="['/deudores', p.deudor_id]" class="dlink">{{ p.deudor_nombre || '—' }}</a>
+                </td>
+                <td>{{ p.concepto || '—' }}</td>
+                <td class="amt mo">S/ {{ p.monto | formatNumber }}</td>
+                <td><span [class]="'mb m-' + p.metodo_pago">{{ p.metodo_pago }}</span></td>
+                <td>
+                  <button type="button" class="btn-edit" (click)="generarComprobante(p)" title="Generar comprobante" aria-label="Generar comprobante">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3z"/><path d="M21 14h0M14 21h0M21 21h0"/></svg>
+                  </button>
+                  <button type="button" class="btn-edit" (click)="abrirEditar(p)" title="Editar pago" aria-label="Editar pago">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span class="table-footer-info">Mostrando {{ pagosOrdenados.length }} de {{ totalPagos }} pagos</span>
+        @if (hayMasPagos) {
+          <button type="button" class="btn-ver-mas" (click)="cargarMas()" [disabled]="loadingMore" aria-label="Cargar más pagos">
+            {{ loadingMore ? 'Cargando…' : 'Ver ' + cantidadVerMas + ' más' }}
+          </button>
+        }
+      </div>
+    </section>
+
     @if (pagos.length && !pagosOrdenados.length) {
-      <div class="empty empty-inline">
-        <p class="empty-title">Ningún pago coincide con el concepto buscado</p>
-        <button type="button" class="btn-link" (click)="filters.patchValue({ concepto: '' })">Limpiar concepto</button>
-      </div>
-    }
-    @if (hayMasPagos) {
-      <div class="load-more-wrap">
-        <button type="button" class="btn btn-load-more" (click)="cargarMas()" [disabled]="loadingMore" aria-label="Cargar más pagos">
-          {{ loadingMore ? 'Cargando…' : 'Ver más (' + cantidadVerMas + ')' }}
-        </button>
-      </div>
+      <section class="card empty-card" aria-label="Sin resultados">
+        <div class="empty empty-inline">
+          <div class="empty-icon-wrap">
+            <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </div>
+          <p class="empty-title">Ningún pago coincide con el concepto buscado</p>
+          <button type="button" class="btn-link btn-link-secondary" (click)="filters.patchValue({ concepto: '' })">Limpiar concepto</button>
+        </div>
+      </section>
     }
   }
 
   @if (!loading && !pagos.length) {
-    <div class="empty">
-      <span class="empty-icon" aria-hidden="true">💳</span>
-      <p class="empty-title">No hay pagos que coincidan con el filtro</p>
-      <p class="empty-hint">Ajusta las fechas, el método o el deudor. También puedes registrar pagos desde el detalle de un deudor.</p>
-      <button type="button" class="btn-link" (click)="limpiar()">Limpiar filtros</button>
-      <a [routerLink]="['/deudores']" class="btn-link btn-link-sec">Ir a Deudores</a>
-    </div>
+    <section class="card empty-card" aria-label="Sin pagos">
+      <div class="empty">
+        <div class="empty-icon-wrap">
+          <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h2 class="empty-title">No hay pagos que coincidan con el filtro</h2>
+        <p class="empty-hint">Ajuste las fechas, el método o el deudor. También puede registrar pagos desde el detalle de un deudor.</p>
+        <button type="button" class="btn-link btn-link-secondary" (click)="limpiar()">Limpiar filtros</button>
+        <a [routerLink]="['/deudores']" class="btn-link">Ir a Deudores</a>
+      </div>
+    </section>
   }
 </div>
 
 <!-- ─── MODAL CREAR / EDITAR PAGO ──────────────────────── -->
 @if (modalVisible) {
   <div class="modal-overlay" (click)="cerrarModal()">
-    <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-box" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarModal()">
 
       <div class="modal-header">
-        <span class="modal-titulo">
-          {{ modoModal === 'crear' ? 'Nuevo pago' : 'Editar pago' }}
-        </span>
-        <button type="button" class="modal-close" (click)="cerrarModal()" aria-label="Cerrar">✕</button>
+        <span class="modal-titulo">{{ modoModal === 'crear' ? 'Nuevo pago' : 'Editar pago' }}</span>
+        <button type="button" class="modal-close" (click)="cerrarModal()" aria-label="Cerrar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
 
-      <!-- FORMULARIO -->
       <form [formGroup]="pagoForm" class="modal-form">
         <div class="form-grid">
           <div class="form-group">
@@ -144,6 +205,20 @@
                 <option [ngValue]="d.id">{{ d.nombre }} {{ d.apellidos || '' }}</option>
               }
             </select>
+          </div>
+          <div class="form-group">
+            <label>Préstamo asociado (opcional)</label>
+            <select formControlName="prestamo_id" aria-label="Seleccionar préstamo">
+              <option [ngValue]="null">Sin asociar</option>
+              @for (pr of prestamosDeudor; track pr.id) {
+                <option [ngValue]="pr.id">{{ pr.descripcion || pr.tipo }} (saldo: S/ {{ pr.saldo_pendiente | formatNumber }})</option>
+              }
+            </select>
+            @if (prestamoYaAsociado) {
+              <span class="form-hint">Este pago ya está asociado a un préstamo y no se puede cambiar.</span>
+            } @else if (!prestamosDeudor.length) {
+              <span class="form-hint">El deudor seleccionado no tiene préstamos con saldo pendiente.</span>
+            }
           </div>
           <div class="form-group">
             <label>Fecha de Pago <span class="req">*</span></label>
@@ -157,7 +232,7 @@
             <label>Monto (S/) <span class="req">*</span></label>
             <input type="number" formControlName="monto" placeholder="0.00" step="0.01" min="0">
             @if (pagoMontoExcedeSaldoDeudor) {
-              <span class="ferr-warn">⚠️ El monto supera el saldo del deudor (S/ {{ saldoDeudorSeleccionado | formatNumber }}). Puedes registrar igual si es correcto.</span>
+              <span class="ferr-warn">El monto supera el saldo del deudor (S/ {{ saldoDeudorSeleccionado | formatNumber }}). Puedes registrar igual si es correcto.</span>
             }
           </div>
           <div class="form-group">
@@ -174,19 +249,20 @@
             <label>N.º operación</label>
             <input type="text" formControlName="numero_operacion" placeholder="Opcional">
           </div>
-          <!-- Comprobante + OCR -->
           <div class="form-group form-group-full">
             <label>Comprobante <span class="hint">(PNG/JPG max 5MB)</span></label>
-            <div class="upload-area" (click)="fileInput.click()" (dragover)="$event.preventDefault()" (drop)="onDrop($event)" [class.upload-has-file]="imagenPreview">
+            <div class="upload-area" (click)="fileInput.click()" (dragenter)="$event.preventDefault()" (dragover)="$event.preventDefault()" (drop)="onDrop($event)" [class.upload-has-file]="imagenPreview">
               @if (imagenPreview) {
                 <img [src]="imagenPreview" class="preview" alt="Vista previa">
-                <button type="button" class="remove-img" (click)="removeImage($event)">✕ Quitar</button>
+                <button type="button" class="remove-img" (click)="removeImage($event)">Quitar imagen</button>
                 <button type="button" class="btn-ocr" (click)="extraerDatosPago(); $event.stopPropagation()" [disabled]="ocrLoading">
-                  {{ ocrLoading ? 'Leyendo imagen…' : '📄 Extraer datos' }}
+                  {{ ocrLoading ? 'Leyendo imagen…' : 'Extraer datos' }}
                 </button>
               } @else {
-                <span class="upload-icon">📎</span>
-                <span class="upload-txt">Click o arrastra una imagen</span>
+                <span class="upload-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </span>
+                <span class="upload-txt">Clic o arrastre una imagen</span>
                 <span class="upload-sub">PNG, JPG hasta 5MB</span>
               }
             </div>
@@ -196,12 +272,10 @@
         </div>
       </form>
 
-      <!-- DIVISOR -->
       <div class="preview-divider">
-        <span class="preview-label">Vista Previa</span>
+        <span class="preview-label">Vista previa</span>
       </div>
 
-      <!-- TARJETA PREVIEW -->
       <div class="preview-card">
         <div class="preview-row">
           <div class="preview-item">
@@ -235,11 +309,10 @@
         </div>
       </div>
 
-      <!-- ACCIONES -->
       <div class="modal-actions">
         <button type="button" class="btn-clr" (click)="cerrarModal()">Cancelar</button>
-        <button type="button" class="btn btn-confirm" (click)="confirmarGuardar()">
-          {{ modoModal === 'crear' ? '✓ Confirmar y Guardar' : '✓ Confirmar y Actualizar' }}
+        <button type="button" class="btn-confirm" (click)="confirmarGuardar()">
+          {{ modoModal === 'crear' ? 'Guardar pago' : 'Actualizar pago' }}
         </button>
       </div>
 

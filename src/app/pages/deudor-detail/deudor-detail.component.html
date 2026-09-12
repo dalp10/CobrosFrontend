@@ -11,6 +11,12 @@
         }
         <button type="button" class="btn-pdf" (click)="exportPDF()" [disabled]="exporting" aria-label="Exportar a PDF">📄 {{ exporting ? 'Exportando…' : 'PDF' }}</button>
         <button type="button" class="btn-excel" (click)="exportExcel()" [disabled]="exporting" aria-label="Exportar a Excel">📊 {{ exporting ? 'Exportando…' : 'Excel' }}</button>
+        <button type="button" class="btn-pdf" (click)="exportEstadoCuenta()" [disabled]="exporting" aria-label="Generar estado de cuenta">🧾 {{ exporting ? 'Generando…' : 'Estado de cuenta' }}</button>
+        <button type="button" class="btn-pdf" (click)="exportCronograma()" [disabled]="exporting" aria-label="Generar cronograma de pagos">🗓️ {{ exporting ? 'Generando…' : 'Cronograma' }}</button>
+        <button type="button" class="btn-pdf" (click)="exportResumenAnual()" [disabled]="exporting" aria-label="Generar resumen anual de pagos">📈 {{ exporting ? 'Generando…' : 'Resumen anual' }}</button>
+        @if (saldoPendiente <= 0 && totalPrestado > 0) {
+          <button type="button" class="btn-pdf" (click)="exportConstanciaCancelacion()" [disabled]="exporting" aria-label="Generar constancia de cancelación total">🏆 {{ exporting ? 'Generando…' : 'Constancia' }}</button>
+        }
       </div>
       <div class="tags">
         @if (deudor.dni) { <span class="tag">DNI: {{ deudor.dni }}</span> }
@@ -26,6 +32,43 @@
       }
     </div>
 
+    <!-- Pestañas -->
+    <nav class="deudor-tabs" aria-label="Secciones del deudor">
+      <button type="button" class="deudor-tab" [class.active]="tabActivo === 'resumen'" (click)="irATab('resumen')">Resumen</button>
+      <button type="button" class="deudor-tab" [class.active]="tabActivo === 'prestamos'" (click)="irATab('prestamos')">Préstamos</button>
+      <button type="button" class="deudor-tab" [class.active]="tabActivo === 'pagos'" (click)="irATab('pagos')">Pagos</button>
+    </nav>
+
+    @if (tabActivo === 'resumen') {
+    <!-- COMPROMISO DE PAGO -->
+    <div class="sec-head">
+      <span class="sec-lbl">Compromiso de pago</span>
+    </div>
+    <div class="compromiso-card">
+      <form [formGroup]="compromisoForm" (ngSubmit)="guardarCompromiso()">
+        <div class="fgrid compromiso-grid">
+          <div class="f">
+            <label>Fecha comprometida</label>
+            <input type="date" formControlName="fecha_compromiso_pago" placeholder="Fecha en que pagará">
+          </div>
+          <div class="f">
+            <label>Monto comprometido (S/)</label>
+            <input type="number" formControlName="monto_compromiso_pago" placeholder="Opcional" step="0.01" min="0">
+          </div>
+          <div class="f full">
+            <label>Notas del compromiso</label>
+            <input type="text" formControlName="notas_compromiso" placeholder="Ej: Pagará la mitad el viernes">
+          </div>
+        </div>
+        @if (compromisoErr) { <div class="form-alert">❌ {{ compromisoErr }}</div> }
+        <div class="faction">
+          <button type="submit" class="btn btn-compromiso" [disabled]="savingCompromiso">
+            {{ savingCompromiso ? 'Guardando…' : 'Guardar compromiso' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <!-- EVOLUCIÓN SALDO -->
     @if (evolucionSaldo.length > 0) {
       <div class="sec-head">
@@ -35,7 +78,9 @@
         <canvas #evolucionChart class="evolucion-canvas" role="img" aria-label="Gráfico evolución del saldo pendiente"></canvas>
       </div>
     }
+    }
 
+    @if (tabActivo === 'prestamos') {
     <!-- PRESTAMOS -->
     <div class="sec-head">
       <span class="sec-lbl">Préstamos</span>
@@ -122,7 +167,9 @@
         </div>
       }
     </div>
+    }
 
+    @if (tabActivo === 'pagos') {
     <!-- PAGOS -->
     <div class="sec-title">Historial de pagos</div>
     <div class="twrap">
@@ -219,7 +266,7 @@
             <label>Comprobante <span class="hint">(PNG/JPG max 5MB)</span></label>
             <div class="upload-area" (click)="fileInput.click()" (dragover)="$event.preventDefault()" (drop)="onDrop($event)" [class.upload-has-file]="imagenPreview">
               @if (imagenPreview) {
-                <img [src]="imagenPreview" class="preview">
+                <img [src]="imagenPreview" class="preview" alt="Vista previa del comprobante">
                 <button type="button" class="remove-img" (click)="removeImage($event)">✕ Quitar</button>
                 <button type="button" class="btn-ocr" (click)="extraerDatosPago(); $event.stopPropagation()" [disabled]="ocrLoading">
                   {{ ocrLoading ? 'Leyendo imagen…' : '📄 Extraer datos' }}
@@ -251,6 +298,7 @@
         </div>
       </form>
     </div>
+    }
 
   }
 </div>
@@ -258,15 +306,15 @@
 <!-- MODAL: VER IMAGEN (historial) -->
 @if (imgModal) {
   <div class="overlay" (click)="imgModal=null;cdr.detectChanges()">
-    <div class="img-modal" (click)="$event.stopPropagation()">
+    <div class="img-modal" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="imgModal=null;cdr.detectChanges()">
       <div class="img-modal-head">
         <span>Comprobante</span>
         <div class="img-modal-actions">
           <a [href]="imgModal" target="_blank" class="btn-dl">⬇️ Descargar</a>
-          <button class="close-btn" (click)="imgModal=null;cdr.detectChanges()">✕</button>
+          <button class="close-btn" (click)="imgModal=null;cdr.detectChanges()" aria-label="Cerrar">✕</button>
         </div>
       </div>
-      <img [src]="imgModal" class="img-full">
+      <img [src]="imgModal" class="img-full" alt="Comprobante de pago ampliado">
     </div>
   </div>
 }
@@ -274,7 +322,7 @@
 <!-- MODAL: EDITAR PAGO -->
 @if (editPago) {
   <div class="overlay" (click)="cerrarEditPago()">
-    <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarEditPago()">
       <div class="modal-head">
         <h2>Editar pago</h2>
         <button class="close-btn" (click)="cerrarEditPago()">✕</button>
@@ -301,7 +349,7 @@
             <label>Comprobante <span class="hint">(PNG/JPG max 5MB)</span></label>
             <div class="upload-area" (click)="editFileInput.click()" (dragover)="$event.preventDefault()" (drop)="onEditDrop($event)" [class.upload-has-file]="editImagenPreview">
               @if (editImagenPreview) {
-                <img [src]="editImagenPreview" class="preview">
+                <img [src]="editImagenPreview" class="preview" alt="Vista previa del comprobante">
                 <button type="button" class="remove-img" (click)="removeEditImage($event)">✕ Quitar</button>
                 <button type="button" class="btn-ocr" (click)="extraerDatosEditPago(); $event.stopPropagation()" [disabled]="ocrEditLoading">
                   {{ ocrEditLoading ? 'Leyendo imagen…' : '📄 Extraer datos' }}
@@ -336,7 +384,7 @@
 <!-- MODAL: CONFIRMAR ELIMINAR -->
 @if (deletePago) {
   <div class="overlay" (click)="deletePago=null;cdr.detectChanges()">
-    <div class="modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-sm" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="deletePago=null;cdr.detectChanges()">
       <h3>¿Eliminar pago?</h3>
       <p>Pago de <strong>S/ {{ deletePago.monto | formatNumber }}</strong> del {{ deletePago.fecha_pago | date:"dd/MM/yyyy" }}</p>
       <p class="warn-txt">Esta acción no se puede deshacer.</p>
@@ -351,13 +399,13 @@
 <!-- MODAL: CRONOGRAMA DE CUOTAS -->
 @if (cronogramaPrestamo) {
   <div class="overlay" (click)="cerrarCronograma()">
-    <div class="modal modal-cronograma" (click)="$event.stopPropagation()">
+    <div class="modal modal-cronograma" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarCronograma()">
       <div class="modal-head">
         <h2>Cronograma: {{ cronogramaPrestamo.descripcion || cronogramaPrestamo.tipo }}</h2>
         <button class="close-btn" (click)="cerrarCronograma()" aria-label="Cerrar">✕</button>
       </div>
       @if (loadingCuotas) {
-        <div class="cronograma-loading">Cargando cuotas...</div>
+        <app-skeleton [rows]="4" [cells]="4" />
       } @else if (cuotasCronograma.length) {
         <div class="cronograma-resumen">
           <span class="cr-item">Total esperado: <strong>S/ {{ cronogramaTotalEsperado | formatNumber }}</strong></span>
@@ -391,6 +439,40 @@
       } @else {
         <div class="cronograma-empty">Este préstamo no tiene cuotas cargadas en el sistema.</div>
       }
+
+      @if (!loadingCuotas) {
+        <div class="reprogramar-sec">
+          <button type="button" class="btn-toggle-reprog" (click)="toggleReprogramar()">
+            {{ showReprogramar ? 'Cancelar reprogramación' : 'Reprogramar cronograma' }}
+          </button>
+          @if (showReprogramar) {
+            <form [formGroup]="reprogramarForm" (ngSubmit)="guardarReprogramacion()">
+              <p class="reprogramar-hint">Se recalcularán las cuotas pendientes (las ya pagadas no se modifican). El saldo pendiente actual se repartirá entre el nuevo plazo, ajustando la última cuota.</p>
+              <div class="fgrid">
+                <div class="f">
+                  <label>Nueva cuota mensual (S/) <span class="req">*</span></label>
+                  <input type="number" step="0.01" min="0.01" formControlName="cuota_mensual" placeholder="0.00">
+                </div>
+                <div class="f">
+                  <label>Nuevo plazo (N° de cuotas) <span class="req">*</span></label>
+                  <input type="number" step="1" min="1" formControlName="total_cuotas" placeholder="1">
+                </div>
+                <div class="f full">
+                  <label>Fecha de la próxima cuota (opcional)</label>
+                  <input type="date" formControlName="fecha_inicio">
+                </div>
+              </div>
+              @if (reprogramarErr) { <div class="form-alert">❌ {{ reprogramarErr }}</div> }
+              <div class="mfooter">
+                <button type="submit" class="btn-save" [disabled]="reprogramarForm.invalid || savingReprogramar">
+                  {{ savingReprogramar ? 'Guardando...' : 'Guardar nuevo cronograma' }}
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      }
+
       <div class="mfooter">
         <button type="button" class="btn-cancel" (click)="cerrarCronograma()">Cerrar</button>
       </div>
@@ -401,13 +483,20 @@
 <!-- MODAL: EDITAR PRÉSTAMO -->
 @if (editPrestamo) {
   <div class="overlay" (click)="cerrarEditarPrestamo()">
-    <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarEditarPrestamo()">
       <div class="modal-head">
         <h2>Editar préstamo</h2>
         <button class="close-btn" (click)="cerrarEditarPrestamo()" aria-label="Cerrar">✕</button>
       </div>
       <form [formGroup]="editPrestamoForm" (ngSubmit)="guardarEditarPrestamo()">
         <div class="fgrid">
+          <div class="f full">
+            <label>Monto prestado (S/) <span class="req">*</span></label>
+            <input type="number" formControlName="monto_original" placeholder="0.00" step="0.01" min="0.01">
+            @if (editPrestamoMontoError) {
+              <span class="ferr">{{ editPrestamoMontoError }}</span>
+            }
+          </div>
           <div class="f full">
             <label>Estado</label>
             <select formControlName="estado">

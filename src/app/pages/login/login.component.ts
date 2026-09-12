@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
@@ -68,10 +69,12 @@ export class LoginComponent {
         this.setStoredEmail(email);
         this.router.navigate(['/']);
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading = false;
-        this.error = 'Email o contraseña incorrectos';
-        this.notify.error('Email o contraseña incorrectos');
+        this.error = err.status === 429
+          ? (err.error?.error || 'Demasiados intentos. Intenta de nuevo más tarde.')
+          : 'Email o contraseña incorrectos';
+        this.notify.error(this.error);
       }
     });
   }

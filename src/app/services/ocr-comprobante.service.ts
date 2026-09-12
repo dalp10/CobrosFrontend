@@ -10,6 +10,7 @@ export interface DatosComprobanteOCR {
   fecha?: string;       // YYYY-MM-DD para input date
   numero_operacion?: string;
   concepto?: string;
+  metodo_pago?: string;
 }
 
 /**
@@ -27,15 +28,22 @@ export class OcrComprobanteService {
    */
   async extraerDatos(imageDataUrl: string): Promise<DatosComprobanteOCR> {
     const text = await this.recognizeText(imageDataUrl);
+    console.log('[OCR] texto reconocido:', JSON.stringify(text));
     return this.parseText(text);
   }
 
   private async recognizeText(imageDataUrl: string): Promise<string> {
-    const { createWorker } = await import('tesseract.js');
+    const { createWorker, PSM } = await import('tesseract.js');
     const worker = await createWorker('spa');
     try {
-      const { data } = await worker.recognize(imageDataUrl);
-      return data.text || '';
+      const { data: dataAuto } = await worker.recognize(imageDataUrl);
+      let text = dataAuto.text || '';
+      // Segunda pasada en modo "texto disperso": el modo automático suele perder
+      // montos grandes y aislados (p. ej. "S/300" en comprobantes de Yape/Plin).
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+      const { data: dataSparse } = await worker.recognize(imageDataUrl);
+      if (dataSparse.text) text += '\n' + dataSparse.text;
+      return text;
     } finally {
       await worker.terminate();
     }
@@ -382,9 +390,26 @@ export class OcrComprobanteService {
       if (rest.length > 0 && rest.length < 200) result.concepto = rest.slice(0, 150);
     }
     if (result.concepto == null && rawLines.length > 0) {
-      const first = rawLines.find(l => l.length > 2 && !/^[\d.,\s]+$/.test(l) && l.length < 120);
+      // Ignorar líneas sin al menos una palabra de 2+ letras (ruido de OCR, ej. "ó E")
+      // y encabezados típicos de comprobantes (Yapeaste, Destino, Yape, etc.)
+      const isBoilerplate = (l: string): boolean =>
+        /^¡?yapeaste!?$/i.test(l) ||
+        /^(yape|plin|destino|datos de la transacci[oó]n|c[oó]digo de seguridad|nro\.?\s*de\s*(celular|operaci[oó]n))$/i.test(l);
+      const first = rawLines.find(l =>
+        l.length > 2 && l.length < 120 &&
+        !/^[\d.,\s]+$/.test(l) &&
+        /[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}/.test(l) &&
+        !isBoilerplate(l)
+      );
       if (first) result.concepto = first.slice(0, 150);
     }
+
+    // —— Método de pago: detectar por palabras clave típicas en el comprobante
+    if (/yape|yapeaste/i.test(full)) result.metodo_pago = 'yape';
+    else if (/plin/i.test(full)) result.metodo_pago = 'plin';
+    else if (/pandero/i.test(full)) result.metodo_pago = 'pandero';
+    else if (/transferencia/i.test(full)) result.metodo_pago = 'transferencia';
+    else if (/efectivo/i.test(full)) result.metodo_pago = 'efectivo';
 
     return result;
   }

@@ -5,15 +5,16 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { DeudoresService } from '../../services/deudores.service';
 import { PrestamosService } from '../../services/prestamos.service';
-import { AlertasService } from '../../services/alertas.service';
+import { AlertasService, MoraDeudor, ProximaDeudor } from '../../services/alertas.service';
 import { NotificationService } from '../../services/notification.service';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
+import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { Deudor, Prestamo } from '../../models/index';
 
 @Component({
   selector: 'app-alertas',
   standalone: true,
-  imports: [RouterLink, DatePipe, FormsModule, FormatNumberPipe],
+  imports: [RouterLink, DatePipe, FormsModule, FormatNumberPipe, SkeletonComponent],
   templateUrl: './alertas.component.html',
   styleUrl: './alertas.component.css'
 })
@@ -27,12 +28,21 @@ export class AlertasComponent implements OnInit {
   loading = true;
   /** ID del deudor cuyo envío está en curso (para mostrar "Enviando...") */
   enviandoDeudorId: number | null = null;
+  /** ID del deudor cuyo recordatorio de mora está en curso */
+  enviandoMoraDeudorId: number | null = null;
   deudoresSinPago: Deudor[] = [];
   prestamosVencidos: Prestamo[] = [];
+  moraPorDeudor: MoraDeudor[] = [];
+  proximasPorDeudor: ProximaDeudor[] = [];
+  diasProximas = 3;
   diasAlerta = 30;
 
   get totalAlertas(): number {
-    return this.deudoresSinPago.length + this.prestamosVencidos.length;
+    return this.deudoresSinPago.length + this.prestamosVencidos.length + this.moraPorDeudor.length + this.proximasPorDeudor.length;
+  }
+
+  get totalMoraGeneral(): number {
+    return this.moraPorDeudor.reduce((s, m) => s + m.total_mora, 0);
   }
 
   ngOnInit(): void {
@@ -64,6 +74,11 @@ export class AlertasComponent implements OnInit {
           },
           error: () => { this.loading = false; this.cdr.detectChanges(); }
         });
+        this.alertasService.getMora().subscribe({
+          next: (mora) => { this.moraPorDeudor = mora; this.cdr.detectChanges(); },
+          error: () => this.cdr.detectChanges()
+        });
+        this.cargarProximas();
       },
       error: () => { this.loading = false; this.cdr.detectChanges(); }
     });
@@ -99,6 +114,17 @@ export class AlertasComponent implements OnInit {
 
   diasDesde(fecha: string): number {
     return Math.floor((new Date().getTime() - new Date(fecha).getTime()) / 86400000);
+  }
+
+  cargarProximas(): void {
+    this.alertasService.getProximas(this.diasProximas).subscribe({
+      next: (proximas) => { this.proximasPorDeudor = proximas; this.cdr.detectChanges(); },
+      error: () => this.cdr.detectChanges()
+    });
+  }
+
+  onDiasProximasChange(): void {
+    this.cargarProximas();
   }
 
   /** Formatea teléfono para wa.me: solo dígitos; Perú 51 + 9 dígitos. Acepta varios formatos. */
@@ -147,6 +173,7 @@ export class AlertasComponent implements OnInit {
     }
     this.enviandoDeudorId = d.id;
     this.cdr.detectChanges();
+    this.notify.showProgress('Enviando mensaje por WhatsApp...');
     const mensaje = this.mensajeWhatsApp(d);
     this.alertasService.enviarWhatsApp({ deudor_id: d.id, mensaje }).subscribe({
       next: () => {
@@ -168,5 +195,68 @@ export class AlertasComponent implements OnInit {
     const num = this.formatoTelefonoWhatsApp(d.telefono);
     if (!num) return null;
     return `https://wa.me/${num}?text=${encodeURIComponent(this.mensajeWhatsApp(d))}`;
+  }
+
+  /** Mensaje de recordatorio de mora detallando las cuotas vencidas de un deudor */
+  mensajeMora(m: MoraDeudor): string {
+    const titulo = '📋 *Recordatorio de cobro*\n\n';
+    const nombre = (m.nombre || '').trim() || 'estimado/a';
+    const detalle = m.cuotas
+      .map(c => `• Cuota ${c.numero_cuota}: S/ ${c.saldo.toLocaleString('es-PE', { minimumFractionDigits: 2 })} (vencida hace ${c.dias_vencido} día${c.dias_vencido !== 1 ? 's' : ''})`)
+      .join('\n');
+    const total = m.total_mora.toLocaleString('es-PE', { minimumFractionDigits: 2 });
+    return titulo + `Hola ${nombre}, tienes cuotas vencidas:\n${detalle}\n\nTotal en mora: S/ ${total}. ¿Podrías regularizar? Gracias.`;
+  }
+
+  /** URL de wa.me con el recordatorio de mora prellenado, o null si no hay teléfono */
+  getWhatsAppUrlMora(m: MoraDeudor): string | null {
+    const num = this.formatoTelefonoWhatsApp(m.telefono);
+    if (!num) return null;
+    return `https://wa.me/${num}?text=${encodeURIComponent(this.mensajeMora(m))}`;
+  }
+
+  /** Mensaje de recordatorio preventivo (cuotas próximas a vencer) de un deudor */
+  mensajeProxima(p: ProximaDeudor): string {
+    const titulo = '📋 *Recordatorio de cobro*\n\n';
+    const nombre = (p.nombre || '').trim() || 'estimado/a';
+    const detalle = p.cuotas
+      .map(c => {
+        const cuando = c.dias_para_vencer === 0 ? 'hoy' : `en ${c.dias_para_vencer} día${c.dias_para_vencer !== 1 ? 's' : ''}`;
+        return `• Cuota ${c.numero_cuota}: S/ ${c.saldo.toLocaleString('es-PE', { minimumFractionDigits: 2 })} (vence ${cuando})`;
+      })
+      .join('\n');
+    return titulo + `Hola ${nombre}, te recordamos que tienes próximas cuotas por vencer:\n${detalle}\n\n¡Gracias por tu puntualidad!`;
+  }
+
+  /** URL de wa.me con el recordatorio preventivo prellenado, o null si no hay teléfono */
+  getWhatsAppUrlProxima(p: ProximaDeudor): string | null {
+    const num = this.formatoTelefonoWhatsApp(p.telefono);
+    if (!num) return null;
+    return `https://wa.me/${num}?text=${encodeURIComponent(this.mensajeProxima(p))}`;
+  }
+
+  /** Envía el recordatorio de mora por WhatsApp vía el backend (Twilio) */
+  enviarRecordatorioMora(m: MoraDeudor): void {
+    if (!m.telefono) {
+      this.notify.error('Este deudor no tiene teléfono registrado.');
+      return;
+    }
+    this.enviandoMoraDeudorId = m.deudor_id;
+    this.cdr.detectChanges();
+    this.notify.showProgress('Enviando mensaje por WhatsApp...');
+    const mensaje = this.mensajeMora(m);
+    this.alertasService.enviarWhatsApp({ deudor_id: m.deudor_id, mensaje }).subscribe({
+      next: () => {
+        this.enviandoMoraDeudorId = null;
+        this.cdr.detectChanges();
+        this.notify.success('Mensaje enviado por WhatsApp a ' + m.nombre + ' ' + m.apellidos);
+      },
+      error: (err) => {
+        this.enviandoMoraDeudorId = null;
+        this.cdr.detectChanges();
+        const msg = err.error?.error || err.message || 'No se pudo enviar el mensaje';
+        this.notify.error(msg);
+      }
+    });
   }
 }

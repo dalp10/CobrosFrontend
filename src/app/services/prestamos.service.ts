@@ -3,15 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { map, tap, of, Observable } from 'rxjs';
 import { shareReplay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { Prestamo, Cuota } from '../models/index';
-
-/** Respuesta posible del API: array directo o { data, total?, page?, limit? } */
-interface PrestamosListResponse {
-  data?: Prestamo[];
-  total?: number;
-  page?: number;
-  limit?: number;
-}
+import { Prestamo, Cuota, PaginatedResponse } from '../models/index';
 
 const CACHE_TTL_MS = 30_000;
 
@@ -35,7 +27,7 @@ export class PrestamosService {
     if (cached) this.observableCache.delete(key);
 
     const params = deudorId ? new HttpParams().set('deudor_id', String(deudorId)) : undefined;
-    const obs = this.http.get<Prestamo[] | PrestamosListResponse>(this.url, { params }).pipe(
+    const obs = this.http.get<Prestamo[] | PaginatedResponse<Prestamo>>(this.url, { params }).pipe(
       map(res => Array.isArray(res) ? res : (res?.data ?? [])),
       tap(data => { this.cache = { key, data, at: Date.now() }; }),
       shareReplay(1)
@@ -57,6 +49,12 @@ export class PrestamosService {
     );
   }
   updateEstado(id: number, estado: string) { return this.http.patch(`${this.url}/${id}/estado`, { estado }); }
+  /** Recalcula las cuotas pendientes de un préstamo con un nuevo monto de cuota y plazo */
+  reprogramar(id: number, data: { cuota_mensual: number; total_cuotas: number; fecha_inicio?: string }) {
+    return this.http.patch<Prestamo & { cuotas: Cuota[] }>(`${this.url}/${id}/reprogramar`, data).pipe(
+      tap(() => this.invalidateCache())
+    );
+  }
   update(id: number, data: Partial<Prestamo>) {
     return this.http.patch<Prestamo>(`${this.url}/${id}`, data).pipe(
       tap(() => this.invalidateCache())

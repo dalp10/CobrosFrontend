@@ -1,10 +1,15 @@
 <div class="page">
-  <div class="page-head">
-    <h1 class="title">Dashboard</h1>
+  <header class="page-head">
+    <div class="page-head-text">
+      <h1 class="title">Dashboard</h1>
+      <p class="subtitle">Resumen de cobros, préstamos y deudores</p>
+    </div>
     @if (data && !loading) {
-      <button type="button" class="btn-refresh" (click)="load(true)" title="Actualizar datos" aria-label="Actualizar datos del dashboard">↻ Actualizar</button>
+      <button type="button" class="btn-refresh" (click)="load(true)" title="Actualizar datos" aria-label="Actualizar datos del dashboard">
+        <span class="btn-refresh-ico">↻</span> Actualizar
+      </button>
     }
-  </div>
+  </header>
 
   @if (loading) {
     <app-dashboard-skeleton />
@@ -12,6 +17,7 @@
 
   @if (error && !loading) {
     <div class="error-box">
+      <span class="error-box-ico">⚠</span>
       <p>No se pudo cargar el resumen. Revisa la conexión e intenta de nuevo.</p>
       <button type="button" class="btn-retry" (click)="load()" aria-label="Reintentar cargar el resumen">Reintentar</button>
     </div>
@@ -20,43 +26,43 @@
   @if (data && !loading && !error) {
 
     <!-- STATS -->
-    <div class="stats" role="group" aria-label="Resumen de totales">
-      <div class="scard" aria-label="Total cobrado">
-        <span class="sico" aria-hidden="true">💰</span>
-        <div>
+    <section class="stats" role="group" aria-label="Resumen de totales">
+      <div class="scard scard-green" aria-label="Total cobrado">
+        <div class="scard-icon scard-icon-green">💰</div>
+        <div class="scard-body">
           <span class="slbl">Total cobrado</span>
-          <span class="sval green">S/ {{ data.totales.total_cobrado | formatNumber }}</span>
+          <span class="sval">S/ {{ data.totales.total_cobrado | formatNumber }}</span>
         </div>
       </div>
-      <div class="scard" aria-label="Total prestado">
-        <span class="sico" aria-hidden="true">📤</span>
-        <div>
+      <div class="scard scard-blue" aria-label="Total prestado">
+        <div class="scard-icon scard-icon-blue">📤</div>
+        <div class="scard-body">
           <span class="slbl">Total prestado</span>
-          <span class="sval blue">S/ {{ data.totales.total_prestado | formatNumber }}</span>
+          <span class="sval">S/ {{ data.totales.total_prestado | formatNumber }}</span>
         </div>
       </div>
-      <div class="scard" aria-label="Pendiente por cobrar">
-        <span class="sico" aria-hidden="true">⏳</span>
-        <div>
+      <div class="scard scard-red" aria-label="Pendiente por cobrar">
+        <div class="scard-icon scard-icon-red">⏳</div>
+        <div class="scard-body">
           <span class="slbl">Pendiente</span>
-          <span class="sval red">S/ {{ (data.totales.total_prestado - data.totales.total_cobrado) | formatNumber }}</span>
+          <span class="sval">S/ {{ (data.totales.total_prestado - data.totales.total_cobrado) | formatNumber }}</span>
         </div>
       </div>
-      <div class="scard" aria-label="Deudores activos">
-        <span class="sico" aria-hidden="true">👥</span>
-        <div>
+      <div class="scard scard-neutral" aria-label="Deudores activos">
+        <div class="scard-icon scard-icon-neutral">👥</div>
+        <div class="scard-body">
           <span class="slbl">Deudores activos</span>
-          <span class="sval white">{{ data.porDeudor.length }}</span>
+          <span class="sval">{{ data.porDeudor.length }}</span>
         </div>
       </div>
       <a [routerLink]="['/prestamos']" class="scard scard-link" [class.has-alert]="prestamosVencidos > 0" aria-label="Préstamos en mora">
-        <span class="sico" aria-hidden="true">⚠️</span>
-        <div>
+        <div class="scard-icon" [class.scard-icon-alert]="prestamosVencidos > 0">⚠️</div>
+        <div class="scard-body">
           <span class="slbl">Préstamos en mora</span>
-          <span class="sval" [class.red]="prestamosVencidos > 0">{{ prestamosVencidos }}</span>
+          <span class="sval" [class.sval-alert]="prestamosVencidos > 0">{{ prestamosVencidos }}</span>
         </div>
       </a>
-    </div>
+    </section>
 
     <div class="row2">
 
@@ -116,14 +122,90 @@
 
     </div>
 
+    <!-- PROYECCIÓN DE COBROS Y RIESGO DE MORA -->
+    <div class="row2">
+
+      <!-- PROYECCIÓN DE COBROS -->
+      <div class="card wide">
+        <h2 class="ctitle">Proyección de cobros</h2>
+        @if (proyeccion) {
+          <div class="stats proyeccion-stats">
+            <div class="scard scard-blue" aria-label="Proyección 30 días">
+              <div class="scard-icon scard-icon-blue">📅</div>
+              <div class="scard-body">
+                <span class="slbl">Próximos 30 días</span>
+                <span class="sval">S/ {{ proyeccion.dias_30 | formatNumber }}</span>
+              </div>
+            </div>
+            <div class="scard scard-blue" aria-label="Proyección 60 días">
+              <div class="scard-icon scard-icon-blue">📅</div>
+              <div class="scard-body">
+                <span class="slbl">Próximos 60 días</span>
+                <span class="sval">S/ {{ proyeccion.dias_60 | formatNumber }}</span>
+              </div>
+            </div>
+            <div class="scard scard-blue" aria-label="Proyección 90 días">
+              <div class="scard-icon scard-icon-blue">📅</div>
+              <div class="scard-body">
+                <span class="slbl">Próximos 90 días</span>
+                <span class="sval">S/ {{ proyeccion.dias_90 | formatNumber }}</span>
+              </div>
+            </div>
+          </div>
+          @if (proyeccion.porMes.length) {
+            <div class="twrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Mes</th>
+                    <th scope="col">Monto esperado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of proyeccion.porMes; track m.mes) {
+                    <tr>
+                      <td>{{ formatMesLabel(m.mes) }}</td>
+                      <td class="mo blue">S/ {{ m.total | formatNumber }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="empty-chart">No hay cuotas pendientes con fecha de vencimiento próxima</div>
+          }
+        }
+      </div>
+
+      <!-- SCORE DE RIESGO DE MORA -->
+      <div class="card narrow">
+        <h2 class="ctitle">Riesgo de mora</h2>
+        @if (riesgoTop.length) {
+          <ul class="riesgo-list">
+            @for (r of riesgoTop; track r.deudor_id) {
+              <li class="riesgo-item">
+                <a [routerLink]="['/deudores', r.deudor_id]" class="dlink riesgo-name">{{ r.nombre }} {{ r.apellidos }}</a>
+                <span class="riesgo-badge" [class]="'riesgo-' + r.nivel">{{ riesgoLabel(r.nivel) }}</span>
+                <span class="riesgo-motivo">{{ r.motivo }}</span>
+                <span class="riesgo-saldo">S/ {{ r.saldo_pendiente | formatNumber }}</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <div class="empty-chart">Sin deudores con saldo pendiente</div>
+        }
+      </div>
+
+    </div>
+
     <!-- TABLA DEUDORES -->
-    <div class="card">
+    <section class="card card-table">
       <h2 class="ctitle">Resumen por deudor</h2>
       @if (deudoresOrdenados.length === 0) {
         <div class="empty-state">
-          <span class="empty-icon">👥</span>
+          <span class="empty-icon" aria-hidden="true">👥</span>
           <p>Aún no hay deudores con movimientos.</p>
-          <a [routerLink]="['/deudores']" class="dlink">Ir a Deudores</a>
+          <a [routerLink]="['/deudores']" class="dlink dlink-btn">Ir a Deudores</a>
         </div>
       } @else {
       <div class="twrap">
@@ -169,7 +251,7 @@
         </div>
       }
       }
-    </div>
+    </section>
 
   }
 </div>

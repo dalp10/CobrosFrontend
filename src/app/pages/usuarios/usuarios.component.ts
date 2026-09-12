@@ -5,11 +5,12 @@ import { UsuariosService } from '../../services/usuarios.service';
 import { NotificationService } from '../../services/notification.service';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { Usuario } from '../../models/index';
+import { ModalFocusDirective } from '../../shared/directives/modal-focus.directive';
 
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [DatePipe, ReactiveFormsModule, SkeletonComponent],
+  imports: [DatePipe, ReactiveFormsModule, SkeletonComponent, ModalFocusDirective],
   templateUrl: './usuarios.component.html',
   styleUrl: './usuarios.component.css'
 })
@@ -85,6 +86,17 @@ export class UsuariosComponent implements OnInit {
     return !!(c && c.invalid && (c.touched || this.passSubmitted));
   }
 
+  /** Etiqueta legible del rol para la tabla */
+  rolLabel(rol: string): string {
+    const map: Record<string, string> = { admin: 'Admin', usuario: 'Usuario', viewer: 'Usuario' };
+    return map[rol] || rol;
+  }
+
+  /** Cantidad de usuarios activos (para la plantilla) */
+  get cantidadActivos(): number {
+    return this.usuarios.filter(u => u.activo).length;
+  }
+
   openModal(u?: Usuario): void {
     this.editando = u || null;
     this.submitted = false;
@@ -118,7 +130,12 @@ export class UsuariosComponent implements OnInit {
 
   guardar(): void {
     this.submitted = true;
-    if (this.form.invalid) { this.form.markAllAsTouched(); this.cdr.detectChanges(); return; }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.notify.error('Completa los campos requeridos');
+      this.cdr.detectChanges();
+      return;
+    }
 
     this.saving = true;
     this.formErr = '';
@@ -149,7 +166,12 @@ export class UsuariosComponent implements OnInit {
 
   cambiarPass(): void {
     this.passSubmitted = true;
-    if (this.passForm.invalid) { this.passForm.markAllAsTouched(); this.cdr.detectChanges(); return; }
+    if (this.passForm.invalid) {
+      this.passForm.markAllAsTouched();
+      this.notify.error('Completa los campos requeridos');
+      this.cdr.detectChanges();
+      return;
+    }
 
     this.savingPass = true;
     this.passErr = '';

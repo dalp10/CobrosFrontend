@@ -19,26 +19,42 @@ html, body {
 a { color: #4f8ef7; }
 input, select, textarea, button { font-family: inherit; }
 
-/* ── Modo claro ── */
-:root { color-scheme: dark; }
+/* ── Tokens de color ── */
+:root {
+  color-scheme: dark;
+  --bg: #0d0f14;
+  --sidebar-bg: #1e2230;
+  --card-bg: #1e2230;
+  --surface-2: #171a24;
+  --border: #2e3450;
+  --border-soft: rgba(46, 52, 80, 0.6);
+  --text: #e8ecf4;
+  --text-muted: #8b92a8;
+  --text-dim: #5a6178;
+  --accent: #4f8ef7;
+  --accent-rgb: 79, 142, 247;
+  --accent-2: #7c5cfc;
+  --danger: #f87171;
+  --success: #22d3a0;
+  --warning: #fbbf24;
+}
 
+/* ── Modo claro ── */
 [data-theme="light"] {
   --bg: #f0f2f8;
   --sidebar-bg: #ffffff;
   --card-bg: #ffffff;
+  --surface-2: #f8f9fc;
   --border: #e2e6f0;
+  --border-soft: #e2e6f0;
   --text: #1a1d2e;
   --text-muted: #6b7280;
+  --text-dim: #9aa1b5;
 }
 
 [data-theme="light"] body {
   background: var(--bg) !important;
   color: var(--text) !important;
-}
-
-[data-theme="light"] .layout-sidebar {
-  background: var(--sidebar-bg) !important;
-  border-right-color: var(--border) !important;
 }
 
 [data-theme="light"] .card,
@@ -69,16 +85,6 @@ input, select, textarea, button { font-family: inherit; }
   background: #f8f9fc !important;
   border-color: var(--border) !important;
   color: var(--text) !important;
-}
-
-[data-theme="light"] .nav-link {
-  color: var(--text-muted) !important;
-}
-
-[data-theme="light"] .nav-link.active,
-[data-theme="light"] .nav-link:hover {
-  background: #f0f4ff !important;
-  color: #4f8ef7 !important;
 }
 
 [data-theme="light"] .overlay {

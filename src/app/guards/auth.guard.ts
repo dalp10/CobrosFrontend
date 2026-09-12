@@ -1,5 +1,7 @@
 import { CanActivateFn, Router } from "@angular/router";
 import { inject } from "@angular/core";
+import { map } from "rxjs";
+import { AuthService } from "../services/auth.service";
 
 const TOKEN_KEY = 'cobros_token';
 
@@ -15,15 +17,17 @@ function isTokenExpired(token: string): boolean {
 }
 
 export const authGuard: CanActivateFn = () => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) {
-    inject(Router).navigate(["/login"]);
-    return false;
-  }
-  if (isTokenExpired(token)) {
-    localStorage.removeItem(TOKEN_KEY);
-    inject(Router).navigate(["/login"]);
-    return false;
-  }
-  return true;
+  const router = inject(Router);
+  const token = sessionStorage.getItem(TOKEN_KEY);
+
+  if (token && !isTokenExpired(token)) return true;
+
+  // El access token falta o expiró: intentar renovarlo con el refresh token (cookie httpOnly).
+  return inject(AuthService).tryRestoreSession().pipe(
+    map(restored => {
+      if (restored) return true;
+      router.navigate(["/login"]);
+      return false;
+    })
+  );
 };

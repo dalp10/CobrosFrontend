@@ -18,6 +18,52 @@ export interface EnviarWhatsAppResponse {
   mensaje?: string;
 }
 
+/** Una cuota vencida (pendiente/parcial con fecha de vencimiento pasada) */
+export interface CuotaEnMora {
+  cuota_id: number;
+  prestamo_id: number;
+  prestamo_desc?: string;
+  numero_cuota: number;
+  fecha_vencimiento: string;
+  monto_esperado: number;
+  monto_pagado: number;
+  saldo: number;
+  dias_vencido: number;
+}
+
+/** Cuotas en mora agrupadas por deudor */
+export interface MoraDeudor {
+  deudor_id: number;
+  nombre: string;
+  apellidos: string;
+  telefono?: string;
+  total_mora: number;
+  cuotas: CuotaEnMora[];
+}
+
+/** Una cuota próxima a vencer */
+export interface CuotaProxima {
+  cuota_id: number;
+  prestamo_id: number;
+  prestamo_desc?: string;
+  numero_cuota: number;
+  fecha_vencimiento: string;
+  monto_esperado: number;
+  monto_pagado: number;
+  saldo: number;
+  dias_para_vencer: number;
+}
+
+/** Cuotas próximas a vencer agrupadas por deudor */
+export interface ProximaDeudor {
+  deudor_id: number;
+  nombre: string;
+  apellidos: string;
+  telefono?: string;
+  total: number;
+  cuotas: CuotaProxima[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AlertasService {
   private http = inject(HttpClient);
@@ -29,5 +75,15 @@ export class AlertasService {
    */
   enviarWhatsApp(body: EnviarWhatsAppBody): Observable<EnviarWhatsAppResponse> {
     return this.http.post<EnviarWhatsAppResponse>(`${this.url}/whatsapp`, body);
+  }
+
+  /** Cuotas vencidas (pendientes/parciales con fecha pasada) agrupadas por deudor */
+  getMora(): Observable<MoraDeudor[]> {
+    return this.http.get<MoraDeudor[]>(`${this.url}/mora`);
+  }
+
+  /** Cuotas pendientes/parciales que vencen dentro de los próximos `dias` días, agrupadas por deudor */
+  getProximas(dias = 3): Observable<ProximaDeudor[]> {
+    return this.http.get<ProximaDeudor[]>(`${this.url}/proximas`, { params: { dias } });
   }
 }

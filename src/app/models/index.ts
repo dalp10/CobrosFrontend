@@ -9,6 +9,12 @@ export interface Deudor {
   notas?: string;
   activo: boolean;
   created_at: string;
+  /** Fecha en que el deudor se comprometió a pagar (ISO date) */
+  fecha_compromiso_pago?: string | null;
+  /** Monto que se comprometió a pagar (opcional) */
+  monto_compromiso_pago?: number | null;
+  /** Notas del compromiso */
+  notas_compromiso?: string | null;
   total_pagado?: number;
   total_prestado?: number;
   saldo_pendiente?: number;
@@ -38,6 +44,9 @@ export interface Prestamo {
   created_at: string;
   total_pagado?: number;
   saldo_pendiente?: number;
+  saldo_capital?: number;
+  interes_total?: number;
+  interes_pagado?: number;
   cuotas_pagadas?: number;
   cuotas_pendientes?: number;
   cuotas?: Cuota[];
@@ -54,9 +63,23 @@ export interface Cuota {
   estado: 'pendiente' | 'pagado' | 'parcial' | 'vencido';
   es_premio_pandero: boolean;
   monto_premio?: number;
+  monto_capital?: number;
+  monto_interes?: number;
 }
 
 export type MetodoPago = 'efectivo' | 'yape' | 'plin' | 'transferencia' | 'pandero' | 'otro';
+
+/** Detalle de cómo un pago se repartió sobre el cronograma de cuotas (respuesta de POST /pagos). */
+export interface CuotaAplicada {
+  numero_cuota: number;
+  monto_aplicado: number;
+  monto_pagado: number;
+  monto_esperado: number;
+  estado: 'pendiente' | 'pagado' | 'parcial' | 'vencido';
+  saldo_restante: number;
+  capital_aplicado?: number;
+  interes_aplicado?: number;
+}
 
 export interface Pago {
   id: number;
@@ -75,6 +98,7 @@ export interface Pago {
   imagen_url?: string;
   imagen_nombre?: string;
   created_at: string;
+  cuotas_aplicadas?: CuotaAplicada[];
 }
 
 export interface PagoForm {
@@ -105,11 +129,12 @@ export interface ResumenDashboard {
   totales: { total_cobrado: number; total_prestado: number };
 }
 
+/** Respuesta paginada del API. total/page/limit son opcionales porque no todos los endpoints los devuelven. */
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
+  total?: number;
+  page?: number;
+  limit?: number;
 }
 
 export interface AuthUser {

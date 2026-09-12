@@ -5,10 +5,11 @@
   </header>
 
   @if (loading) {
-    <div class="loading-msg">Cargando...</div>
+    <app-skeleton [rows]="6" [cells]="3" />
   }
 
   @if (!loading && resumen) {
+    <main class="reparto-content">
     <!-- Selector de período -->
     <section class="sec sec-periodo">
       <div class="periodo-bar">
@@ -46,7 +47,19 @@
       </div>
     </section>
 
+    <!-- Submenú: pestañas -->
+    <nav class="reparto-tabs" aria-label="Secciones de reparto">
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'resumen'" (click)="irATab('resumen')">Resumen</button>
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'agregar-persona'" (click)="irATab('agregar-persona')">Agregar persona</button>
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'presupuesto'" (click)="irATab('presupuesto')">Definir presupuesto</button>
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'categorias'" (click)="irATab('categorias')">Categorías</button>
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'gastos'" (click)="irATab('gastos')">Gastos</button>
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'reembolsos'" (click)="irATab('reembolsos')">Reembolsos</button>
+      <button type="button" class="reparto-tab" [class.active]="tabActivo === 'reportes'" (click)="irATab('reportes')">Reportes</button>
+    </nav>
+
     <!-- Quién le debe a quién -->
+    @if (tabActivo === 'resumen') {
     @if (resumen.sugerencias_reembolso && resumen.sugerencias_reembolso.length) {
       <section class="sec">
         <div class="sec-head">
@@ -95,76 +108,14 @@
         }
       </section>
     }
+    }
 
     <!-- Resumen y saldos -->
+    @if (tabActivo === 'resumen') {
     <section class="sec">
       <div class="sec-head">
         <h2 class="sec-title">Resumen</h2>
-        <div class="sec-head-actions">
-          @if (categorias.length >= 0) {
-            <button type="button" class="btn-add" (click)="showNuevaCategoria = !showNuevaCategoria">{{ showNuevaCategoria ? 'Cancelar' : '+ Categoría' }}</button>
-          }
-          <button type="button" class="btn-add" (click)="toggleNuevoMiembro()">{{ showNuevoMiembro ? 'Cancelar' : '+ Agregar persona' }}</button>
-        </div>
       </div>
-      @if (showNuevaCategoria) {
-        <div class="form-card">
-          <div class="fgrid">
-            <div class="f">
-              <label>Nombre categoría</label>
-              <input type="text" [(ngModel)]="nuevaCategoriaNombre" name="nuevaCat" placeholder="Ej. Luz, Agua" maxlength="80" />
-            </div>
-            <div class="f">
-              <button type="button" class="btn" (click)="submitNuevaCategoria()" [disabled]="savingCategoria || !nuevaCategoriaNombre.trim()">{{ savingCategoria ? 'Guardando...' : 'Crear' }}</button>
-            </div>
-          </div>
-        </div>
-      }
-      @if (categorias.length) {
-        <div class="categorias-list">
-          <span class="periodo-label">Categorías:</span>
-          <ul class="list list-inline">
-            @for (c of categorias; track c.id) {
-              <li class="list-item list-item-sm">
-                @if (categoriaEditando?.id === c.id) {
-                  <span class="categoria-edit-inline">
-                    <input type="text" [(ngModel)]="categoriaFormEdit.nombre" placeholder="Nombre" class="input-sm" maxlength="80" />
-                    <input type="text" [(ngModel)]="categoriaFormEdit.color" placeholder="#hex color" class="input-sm input-color" maxlength="7" />
-                    <button type="button" class="btn-sm" (click)="submitEditarCategoria()" [disabled]="savingCategoriaEdit">Guardar</button>
-                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarCategoria()">Cancelar</button>
-                  </span>
-                } @else {
-                  @if (c.color) { <span class="categoria-dot" [style.background-color]="c.color"></span> }
-                  <span class="list-concepto">{{ c.nombre }}</span>
-                  <button type="button" class="link-edit" (click)="abrirEditarCategoria(c)">Editar</button>
-                  <button type="button" class="link-delete" (click)="confirmarEliminarCategoria(c)">Eliminar</button>
-                }
-              </li>
-            }
-          </ul>
-        </div>
-      }
-      @if (showNuevoMiembro) {
-        <div class="form-card">
-          <form (ngSubmit)="submitNuevoMiembro()">
-            <div class="fgrid">
-              <div class="f">
-                <label>Nombre <span class="req">*</span></label>
-                <input type="text" [(ngModel)]="nuevoMiembroForm.nombre" name="nuevoNombre" placeholder="Ej. María López" maxlength="100" />
-              </div>
-              <div class="f">
-                <label>Cargo adicional (S/) /mes</label>
-                <input type="number" [(ngModel)]="nuevoMiembroForm.cargo_adicional_mensual" name="nuevoCargo" min="0" step="0.01" placeholder="0" />
-              </div>
-            </div>
-            @if (errNuevoMiembro) { <p class="form-err">{{ errNuevoMiembro }}</p> }
-            <div class="faction">
-              <button type="button" class="btn-cancel" (click)="toggleNuevoMiembro()">Cancelar</button>
-              <button type="submit" class="btn" [disabled]="savingNuevoMiembro">{{ savingNuevoMiembro ? 'Guardando...' : 'Agregar al reparto' }}</button>
-            </div>
-          </form>
-        </div>
-      }
       <div class="resumen-totales">
         <div class="totales-item">
           <span class="totales-label">Total gastos</span>
@@ -175,6 +126,30 @@
           <span class="totales-val">S/ {{ resumen.cuota_por_persona | formatNumber }}</span>
         </div>
       </div>
+      @if (pagadoVsCuotaChart.length) {
+        <div class="chart-section">
+          <h3 class="chart-title">Pagado vs cuota por persona</h3>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot legend-pagado"></span> Pagó</span>
+            <span class="legend-item"><span class="legend-dot legend-cuota"></span> Cuota</span>
+          </div>
+          @for (item of pagadoVsCuotaChart; track item.nombre) {
+            <div class="chart-row">
+              <span class="chart-row-label">{{ item.nombre }}</span>
+              <div class="chart-bars">
+                <div class="chart-bar-wrap">
+                  <div class="chart-bar chart-bar-pagado" [style.width.%]="item.pagadoPct"></div>
+                  <span class="chart-bar-value">S/ {{ item.pagado | formatNumber }}</span>
+                </div>
+                <div class="chart-bar-wrap">
+                  <div class="chart-bar chart-bar-cuota" [style.width.%]="item.cuotaPct"></div>
+                  <span class="chart-bar-value">S/ {{ item.cuota | formatNumber }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
       <p class="hint-cargo">Si alguien tiene un cargo extra (ej. aire acondicionado), asígnalo en su tarjeta. Su cuota será mayor cada mes.</p>
       <div class="miembros-grid">
         @for (m of resumen.miembros; track m.id) {
@@ -220,6 +195,25 @@
           <h2 class="sec-title">Resumen por mes</h2>
         </div>
         <p class="hint-cargo">Total de gastos y cuota por persona en cada mes con actividad.</p>
+        @if (evolucionGastosChart.length > 1) {
+          <div class="chart-section chart-evolucion">
+            <h3 class="chart-title">Evolución de gastos por mes</h3>
+            <div class="chart-cols">
+              @for (item of evolucionGastosChart; track item.mes) {
+                <div class="chart-col">
+                  <span class="chart-col-value">S/ {{ item.total | formatNumber }}</span>
+                  <div class="chart-col-bar-wrap">
+                    <div class="chart-col-bar" [style.height.%]="item.pct"></div>
+                  </div>
+                  <span class="chart-col-label">{{ item.mes }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (hayGastosConParticipantes) {
+          <p class="hint-cargo">Los gastos repartidos solo entre algunos miembros (ver "Repartido entre" en la pestaña Gastos) no se incluyen en estos totales, pero sí afectan la cuota individual de cada quien.</p>
+        }
         <div class="mes-grid">
           @for (item of resumen.resumen_por_mes; track item.mes) {
             <div class="mes-card">
@@ -254,7 +248,62 @@
       </section>
     }
 
-    <!-- Presupuesto -->
+    }
+
+    <!-- Agregar persona (pestaña propia) -->
+    @if (tabActivo === 'agregar-persona') {
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Agregar persona</h2>
+      </div>
+      <div class="form-card">
+        <form (ngSubmit)="submitNuevoMiembro()">
+          <div class="fgrid">
+            <div class="f">
+              <label>Nombre <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="nuevoMiembroForm.nombre" name="nuevoNombre" placeholder="Ej. María López" maxlength="100" />
+            </div>
+            <div class="f">
+              <label>Cargo adicional (S/) /mes</label>
+              <input type="number" [(ngModel)]="nuevoMiembroForm.cargo_adicional_mensual" name="nuevoCargo" min="0" step="0.01" placeholder="0" />
+            </div>
+          </div>
+          @if (errNuevoMiembro) { <p class="form-err">{{ errNuevoMiembro }}</p> }
+          <div class="faction">
+            <button type="submit" class="btn" [disabled]="savingNuevoMiembro">{{ savingNuevoMiembro ? 'Guardando...' : 'Agregar al reparto' }}</button>
+          </div>
+        </form>
+      </div>
+      <p class="hint-cargo">Para ver saldos y editar cargos de cada persona, ve al <button type="button" class="link-edit" (click)="irATab('resumen')">Resumen</button>.</p>
+      @if (resumen && resumen.miembros && resumen.miembros.length) {
+        <p class="hint-cargo">Personas en el reparto ({{ resumen.miembros.length }}):</p>
+        <div class="lista-miembros-chips">
+          @for (m of resumen.miembros; track m.id) {
+            <span class="list-item-sm">
+              <span class="list-concepto">{{ m.nombre }}</span>
+              @if (editingCargoId === m.id) {
+                <span class="cargo-edit">
+                  <label>Cargo adicional (S/) /mes</label>
+                  <input type="number" [(ngModel)]="cargoEditValue" min="0" step="0.01" placeholder="0" />
+                  <div class="cargo-btns">
+                    <button type="button" class="btn-sm" (click)="guardarCargo()" [disabled]="savingCargoId === m.id">{{ savingCargoId === m.id ? 'Guardando...' : 'Guardar' }}</button>
+                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarCargo()">Cancelar</button>
+                  </div>
+                </span>
+              } @else {
+                <span class="list-meta">Cargo: S/ {{ (m.cargo_adicional_mensual ?? 0) | formatNumber }}/mes</span>
+                <button type="button" class="link-edit" (click)="editarCargo(m)">Editar</button>
+                <button type="button" class="link-delete" (click)="confirmarEliminar(m)">Eliminar</button>
+              }
+            </span>
+          }
+        </div>
+      }
+    </section>
+    }
+
+    <!-- Definir presupuesto (pestaña propia) -->
+    @if (tabActivo === 'presupuesto') {
     <section class="sec">
       <div class="sec-head">
         <h2 class="sec-title">Presupuesto por mes</h2>
@@ -307,8 +356,58 @@
         </div>
       }
     </section>
+    }
+
+    <!-- Categorías (solo en pestaña Categorías) -->
+    @if (tabActivo === 'categorias') {
+    <section class="sec">
+      <div class="sec-head">
+        <h2 class="sec-title">Categorías</h2>
+        <button type="button" class="btn-add" (click)="showNuevaCategoria = !showNuevaCategoria">{{ showNuevaCategoria ? 'Cancelar' : '+ Categoría' }}</button>
+      </div>
+      @if (showNuevaCategoria) {
+        <div class="form-card">
+          <div class="fgrid">
+            <div class="f">
+              <label>Nombre categoría</label>
+              <input type="text" [(ngModel)]="nuevaCategoriaNombre" name="nuevaCat" placeholder="Ej. Luz, Agua" maxlength="80" />
+            </div>
+            <div class="f">
+              <button type="button" class="btn" (click)="submitNuevaCategoria()" [disabled]="savingCategoria || !nuevaCategoriaNombre.trim()">{{ savingCategoria ? 'Guardando...' : 'Crear' }}</button>
+            </div>
+          </div>
+        </div>
+      }
+      @if (categorias.length) {
+        <div class="categorias-list">
+          <ul class="list list-inline">
+            @for (c of categorias; track c.id) {
+              <li class="list-item list-item-sm">
+                @if (categoriaEditando?.id === c.id) {
+                  <span class="categoria-edit-inline">
+                    <input type="text" [(ngModel)]="categoriaFormEdit.nombre" placeholder="Nombre" class="input-sm" maxlength="80" />
+                    <input type="text" [(ngModel)]="categoriaFormEdit.color" placeholder="#hex color" class="input-sm input-color" maxlength="7" />
+                    <button type="button" class="btn-sm" (click)="submitEditarCategoria()" [disabled]="savingCategoriaEdit">Guardar</button>
+                    <button type="button" class="btn-cancel-sm" (click)="cancelarEditarCategoria()">Cancelar</button>
+                  </span>
+                } @else {
+                  @if (c.color) { <span class="categoria-dot" [style.background-color]="c.color"></span> }
+                  <span class="list-concepto">{{ c.nombre }}</span>
+                  <button type="button" class="link-edit" (click)="abrirEditarCategoria(c)">Editar</button>
+                  <button type="button" class="link-delete" (click)="confirmarEliminarCategoria(c)">Eliminar</button>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      } @else if (!showNuevaCategoria) {
+        <p class="sec-empty">No hay categorías. Crea una (Luz, Agua, etc.) para clasificar gastos.</p>
+      }
+    </section>
+    }
 
     <!-- Gastos -->
+    @if (tabActivo === 'gastos') {
     <section class="sec">
       <div class="sec-head">
         <h2 class="sec-title">Gastos (servicios)</h2>
@@ -334,6 +433,18 @@
                 <input type="date" [(ngModel)]="gastoForm.fecha" name="fecha" />
               </div>
               <div class="f">
+                <label>Fecha de corte</label>
+                <input type="date" [(ngModel)]="gastoForm.fecha_corte" name="fecha_corte" />
+              </div>
+              <div class="f">
+                <label>Fecha de vencimiento</label>
+                <input type="date" [(ngModel)]="gastoForm.fecha_vencimiento" name="fecha_vencimiento" />
+              </div>
+              <div class="f">
+                <label>Meses que cubre este recibo</label>
+                <input type="number" min="1" max="12" [(ngModel)]="gastoForm.meses" name="meses" (ngModelChange)="actualizarCargosPorMesesNuevo()" />
+              </div>
+              <div class="f">
                 <label>Quién pagó <span class="req">*</span></label>
                 <select [(ngModel)]="gastoForm.pagado_por_id" name="pagado_por_id">
                   @for (m of resumen.miembros; track m.id) {
@@ -350,17 +461,25 @@
                   }
                 </select>
               </div>
-              <div class="f">
-                <label>Medio de pago</label>
-                <select [(ngModel)]="gastoForm.medio_pago" name="medio_pago">
-                  @for (m of MEDIOS_PAGO; track m.value) {
-                    <option [ngValue]="m.value">{{ m.label }}</option>
-                  }
-                </select>
-              </div>
+              @if (!gastoForm.es_borrador) {
+                <div class="f">
+                  <label>Medio de pago</label>
+                  <select [(ngModel)]="gastoForm.medio_pago" name="medio_pago">
+                    @for (m of MEDIOS_PAGO; track m.value) {
+                      <option [ngValue]="m.value">{{ m.label }}</option>
+                    }
+                  </select>
+                </div>
+              }
               <div class="f full">
                 <label>Notas</label>
                 <input type="text" [(ngModel)]="gastoForm.notas" name="notas" placeholder="Opcional" />
+              </div>
+              <div class="f full checkbox-f">
+                <label class="checkbox-label">
+                  <input type="checkbox" [(ngModel)]="gastoForm.es_borrador" name="es_borrador" />
+                  Pendiente de pago (borrador) — solo para ver cuánto le toca a cada uno, sin registrar el pago todavía
+                </label>
               </div>
             </div>
             @if (gastoForm.participantes.length) {
@@ -373,6 +492,20 @@
                       <input type="checkbox" [(ngModel)]="p.participa" [ngModelOptions]="{standalone: true}" name="part_{{ p.miembro_id }}" />
                       <span class="participante-nombre">{{ p.nombre }}</span>
                       <input type="number" [(ngModel)]="p.peso" [ngModelOptions]="{standalone: true}" name="peso_{{ p.miembro_id }}" min="0" step="0.01" class="participante-peso" placeholder="1" />
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+            @if (gastoForm.cargos.length) {
+              <div class="participantes-section">
+                <label class="participantes-label">Cargos extra para este gasto (opcional)</label>
+                <p class="hint-cargo">Monto adicional que asume cada persona en este recibo (ej. aire acondicionado). Se sugiere según el cargo mensual configurado × meses, pero puedes editarlo.</p>
+                <div class="participantes-list">
+                  @for (c of gastoForm.cargos; track c.miembro_id) {
+                    <div class="participante-row">
+                      <span class="participante-nombre">{{ c.nombre }}</span>
+                      <input type="number" [(ngModel)]="c.monto" [ngModelOptions]="{standalone: true}" name="cargo_{{ c.miembro_id }}" min="0" step="0.01" class="participante-peso" placeholder="0" />
                     </div>
                   }
                 </div>
@@ -412,6 +545,18 @@
                     <div class="f">
                       <label>Fecha</label>
                       <input type="date" [(ngModel)]="gastoFormEdit.fecha" />
+                    </div>
+                    <div class="f">
+                      <label>Fecha de corte</label>
+                      <input type="date" [(ngModel)]="gastoFormEdit.fecha_corte" />
+                    </div>
+                    <div class="f">
+                      <label>Fecha de vencimiento</label>
+                      <input type="date" [(ngModel)]="gastoFormEdit.fecha_vencimiento" />
+                    </div>
+                    <div class="f">
+                      <label>Meses que cubre este recibo</label>
+                      <input type="number" min="1" max="12" [(ngModel)]="gastoFormEdit.meses" (ngModelChange)="actualizarCargosPorMesesEdit()" />
                     </div>
                     <div class="f">
                       <label>Quién pagó</label>
@@ -457,6 +602,19 @@
                       </div>
                     </div>
                   }
+                  @if (gastoFormEdit.cargos.length) {
+                    <div class="participantes-section participantes-section-inline">
+                      <label class="participantes-label">Cargos extra para este gasto</label>
+                      <div class="participantes-list">
+                        @for (c of gastoFormEdit.cargos; track c.miembro_id) {
+                          <div class="participante-row">
+                            <span class="participante-nombre">{{ c.nombre }}</span>
+                            <input type="number" [(ngModel)]="c.monto" [ngModelOptions]="{standalone: true}" name="edit_cargo_{{ c.miembro_id }}" min="0" step="0.01" class="participante-peso" />
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
                   @if (errGastoEdit) { <p class="form-err">{{ errGastoEdit }}</p> }
                   <div class="faction">
                     <button type="button" class="btn-cancel-sm" (click)="cancelarEditarGasto()">Cancelar</button>
@@ -472,7 +630,34 @@
                 </span>
                 <span class="list-monto">S/ {{ g.monto_total | formatNumber }}</span>
                 <span class="list-meta">{{ g.fecha | date:"dd/MM/yyyy" }} — Pagó: {{ g.pagado_por_nombre }}{{ getMedioPagoLabel(g.medio_pago) ? ' · ' + getMedioPagoLabel(g.medio_pago) : '' }}</span>
+                @if (getParticipantesLabel(g)) {
+                  <span class="list-meta badge-participantes">Repartido entre: {{ getParticipantesLabel(g) }}</span>
+                }
+                @if (g.fecha_corte || g.fecha_vencimiento) {
+                  <span class="list-meta">
+                    @if (g.fecha_corte) { Corte: {{ g.fecha_corte | date:"dd/MM/yyyy" }} }
+                    @if (g.fecha_corte && g.fecha_vencimiento) { · }
+                    @if (g.fecha_vencimiento) { Vence: {{ g.fecha_vencimiento | date:"dd/MM/yyyy" }} }
+                  </span>
+                }
+                @if ((g.meses ?? 1) > 1) {
+                  <span class="list-meta">Cubre {{ g.meses }} meses</span>
+                }
+                @if (g.estado !== 'borrador' && estadoVencimiento(g) === 'vencido') {
+                  <span class="list-meta badge-vencido">Vencido</span>
+                } @else if (g.estado !== 'borrador' && estadoVencimiento(g) === 'proximo') {
+                  <span class="list-meta badge-proximo">Vence pronto</span>
+                }
+                @if (g.recurrente) {
+                  <span class="list-meta badge-recurrente">Recurrente</span>
+                }
+                @if (g.estado === 'borrador') {
+                  <span class="list-meta badge-borrador">Pendiente de pago (borrador)</span>
+                }
                 <div class="list-actions">
+                  @if (g.estado === 'borrador') {
+                    <button type="button" class="link-edit" (click)="abrirConfirmarGasto(g)">Confirmar pago</button>
+                  }
                   <button type="button" class="link-edit" (click)="abrirEditarGasto(g)">Editar</button>
                   <button type="button" class="link-edit" (click)="repetirGastoMes(g)" [disabled]="repitiendoGastoId === g.id">{{ repitiendoGastoId === g.id ? '...' : 'Repetir mes' }}</button>
                   <button type="button" class="link-edit" (click)="loadAdjuntos(g.id)">Recibo ({{ getAdjuntos(g.id).length }})</button>
@@ -503,8 +688,10 @@
         <p class="sec-empty">Aún no hay gastos. Registra agua, luz, etc.</p>
       }
     </section>
+    }
 
     <!-- Reembolsos -->
+    @if (tabActivo === 'reembolsos') {
     <section class="sec">
       <div class="sec-head">
         <h2 class="sec-title">Reembolsos</h2>
@@ -571,8 +758,16 @@
         </div>
       }
       @if (resumen.reembolsos.length) {
+        <div class="gastos-filtros">
+          <input type="text" [(ngModel)]="reembolsoSearchText" name="reembolsoSearch" placeholder="Buscar por nombre o concepto..." class="input-search" />
+          <select [(ngModel)]="reembolsoOrden" name="reembolsoOrden" class="select-orden">
+            <option value="fecha">Orden: Fecha</option>
+            <option value="monto">Orden: Monto</option>
+            <option value="nombre">Orden: Quién paga</option>
+          </select>
+        </div>
         <ul class="list">
-          @for (r of resumen.reembolsos; track r.id) {
+          @for (r of reembolsosFiltradosOrdenados; track r.id) {
             <li class="list-item">
               @if (reembolsoEditando?.id === r.id) {
                 <div class="form-edit-inline">
@@ -662,8 +857,10 @@
         <p class="sec-empty">Aún no hay reembolsos registrados.</p>
       }
     </section>
+    }
 
     <!-- Reportes -->
+    @if (tabActivo === 'reportes') {
     <section class="sec">
       <div class="sec-head">
         <h2 class="sec-title">Reportes</h2>
@@ -679,6 +876,12 @@
             <label>Hasta (opcional)</label>
             <input type="date" [(ngModel)]="reporteHasta" name="reporteHasta" />
           </div>
+          <div class="f full checkbox-f">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="incluirAdjuntosPdf" name="incluirAdjuntosPdf" />
+              Incluir imágenes de los recibos adjuntos en el PDF (para mostrar a tus hermanos)
+            </label>
+          </div>
         </div>
         <div class="faction reporte-actions">
           <button type="button" class="btn" (click)="descargarReporte()" [disabled]="descargandoReporte">
@@ -692,14 +895,26 @@
           </button>
         </div>
       </div>
+
+      <div class="form-card">
+        <h3 class="sec-subtitle">Reporte de borradores</h3>
+        <p class="hint-cargo">PDF solo con los gastos en borrador (pendientes de pago): muestra la cuota que le corresponde a cada uno por cada recibo, sus fechas de corte/vencimiento e imágenes de los recibos adjuntos. No incluye saldos ni quién debe a quién.</p>
+        <div class="faction reporte-actions">
+          <button type="button" class="btn btn-pdf" (click)="descargarPdfBorradores()" [disabled]="descargandoPdfBorradores">
+            {{ descargandoPdfBorradores ? 'Generando...' : 'Descargar PDF de borradores' }}
+          </button>
+        </div>
+      </div>
     </section>
+    }
+    </main>
   }
 </div>
 
 <!-- Modal confirmar eliminar miembro -->
 @if (miembroAEliminar) {
   <div class="overlay" (click)="cerrarModalEliminar()">
-    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarModalEliminar()">
       <h3>¿Eliminar del reparto?</h3>
       <p>Se quitará a <strong>{{ miembroAEliminar.nombre }}</strong> del reparto. Dejará de aparecer en la lista y en los gastos futuros.</p>
       <p class="modal-hint">Los gastos y reembolsos pasados se conservan. Si la agregaste por error, puedes volver a agregarla después con «+ Agregar persona».</p>
@@ -711,10 +926,33 @@
   </div>
 }
 
+<!-- Modal confirmar pago de gasto en borrador -->
+@if (gastoAConfirmar) {
+  <div class="overlay" (click)="cerrarModalConfirmarGasto()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarModalConfirmarGasto()">
+      <h3>Confirmar pago</h3>
+      <p><strong>{{ gastoAConfirmar.concepto }}</strong> — S/ {{ gastoAConfirmar.monto_total | formatNumber }} ({{ gastoAConfirmar.fecha | date:"dd/MM/yyyy" }})</p>
+      <div class="f">
+        <label>Medio de pago</label>
+        <select [(ngModel)]="confirmarGastoMedioPago" name="confirmarMedioPago">
+          @for (m of MEDIOS_PAGO; track m.value) {
+            <option [ngValue]="m.value">{{ m.label }}</option>
+          }
+        </select>
+      </div>
+      <p class="modal-hint">El gasto pasará de "pendiente de pago" a confirmado.</p>
+      <div class="mfooter">
+        <button type="button" class="btn-cancel" (click)="cerrarModalConfirmarGasto()">Cancelar</button>
+        <button type="button" class="btn" (click)="confirmarPagoGasto()" [disabled]="confirmandoGasto">{{ confirmandoGasto ? 'Guardando...' : 'Confirmar pago' }}</button>
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Modal confirmar anular gasto -->
 @if (gastoAAnular) {
   <div class="overlay" (click)="cerrarModalAnularGasto()">
-    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarModalAnularGasto()">
       <h3>¿Anular este gasto?</h3>
       <p><strong>{{ gastoAAnular.concepto }}</strong> — S/ {{ gastoAAnular.monto_total | formatNumber }} ({{ gastoAAnular.fecha | date:"dd/MM/yyyy" }})</p>
       @if (reembolsosAsociadosCount(gastoAAnular) > 0) {
@@ -732,7 +970,7 @@
 <!-- Modal confirmar anular reembolso -->
 @if (reembolsoAAnular) {
   <div class="overlay" (click)="cerrarModalAnularReembolso()">
-    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarModalAnularReembolso()">
       <h3>¿Anular este reembolso?</h3>
       <p><strong>{{ reembolsoAAnular.de_nombre }} → {{ reembolsoAAnular.para_nombre }}</strong> — S/ {{ reembolsoAAnular.monto | formatNumber }} ({{ reembolsoAAnular.fecha | date:"dd/MM/yyyy" }})</p>
       <p class="modal-hint">El reembolso quedará marcado como anulado y dejará de contar en el reparto.</p>
@@ -747,7 +985,7 @@
 <!-- Modal confirmar eliminar categoría -->
 @if (categoriaAEliminar) {
   <div class="overlay" (click)="cerrarModalEliminarCategoria()">
-    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="cerrarModalEliminarCategoria()">
       <h3>¿Eliminar categoría?</h3>
       <p>Se eliminará la categoría <strong>{{ categoriaAEliminar.nombre }}</strong>. Los gastos que la usen quedarán sin categoría.</p>
       <div class="mfooter">

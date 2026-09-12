@@ -1,92 +1,282 @@
-<div class="page">
+<div class="page alertas-page">
   <header class="page-head">
-    <h1 class="title">Alertas</h1>
-    <p class="subtitle">Deudores sin pago reciente y préstamos en mora</p>
+    <div class="page-head-text">
+      <h1 class="title">Alertas</h1>
+      @if (!loading) {
+        <p class="subtitle">Deudores sin pago reciente y préstamos en mora. {{ totalAlertas }} alerta{{ totalAlertas !== 1 ? 's' : '' }} en total.</p>
+      } @else {
+        <p class="subtitle">Cargando alertas…</p>
+      }
+    </div>
+    @if (!loading) {
+      <button type="button" class="btn-refresh" (click)="load()" title="Actualizar alertas" aria-label="Actualizar alertas">
+        <svg class="btn-refresh-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Actualizar
+      </button>
+    }
   </header>
 
   @if (loading) {
-    <div class="loading-msg">Cargando alertas...</div>
+    <app-skeleton [rows]="5" [cells]="4" />
   }
 
-  @if (!loading) {
-    @if (totalAlertas === 0) {
-      <div class="empty">
-        <span class="empty-icon" aria-hidden="true">✅</span>
-        <p class="empty-title">Sin alertas</p>
-        <p class="empty-hint">No hay deudores sin pago reciente ni préstamos en mora.</p>
-      </div>
-    } @else {
-      <!-- Deudores sin pago reciente -->
-      <section class="sec" aria-labelledby="sec-deudores">
-        <div class="sec-head">
-          <h2 id="sec-deudores" class="sec-title">⚠️ Deudores sin pago reciente</h2>
-          <div class="dias-ctrl">
-            <label for="dias-alerta">Mostrar sin pago hace más de</label>
-            <select id="dias-alerta" [(ngModel)]="diasAlerta" (ngModelChange)="onDiasChange()" class="dias-sel">
-              <option [ngValue]="15">15 días</option>
-              <option [ngValue]="30">30 días</option>
-              <option [ngValue]="60">60 días</option>
-              <option [ngValue]="90">90 días</option>
-            </select>
-          </div>
+  @if (!loading && totalAlertas > 0) {
+    <section class="stats" role="group" aria-label="Resumen de alertas">
+      <div class="scard scard-neutral">
+        <div class="scard-icon scard-icon-neutral">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
-        @if (deudoresSinPago.length) {
-          <ul class="alerta-list">
-            @for (d of deudoresSinPago; track d.id) {
-              <li class="alerta-item">
-                <div class="alerta-avatar">{{ d.nombre[0] }}{{ d.apellidos[0] }}</div>
-                <div class="alerta-info">
-                  <a [routerLink]="['/deudores', d.id]" class="alerta-name">{{ d.nombre }} {{ d.apellidos }}</a>
-                  <span class="alerta-meta">
-                    @if (d.ultimo_pago) {
-                      Último pago: {{ d.ultimo_pago | date:"dd/MM/yyyy" }} (hace {{ diasDesde(d.ultimo_pago) }} días)
-                    } @else {
-                      Sin pagos registrados
-                    }
-                  </span>
+        <div class="scard-body">
+          <span class="slbl">Total alertas</span>
+          <span class="sval">{{ totalAlertas }}</span>
+        </div>
+      </div>
+      <div class="scard scard-amber">
+        <div class="scard-icon scard-icon-amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="scard-body">
+          <span class="slbl">Deudores sin pago</span>
+          <span class="sval">{{ deudoresSinPago.length }}</span>
+        </div>
+      </div>
+      <div class="scard scard-red">
+        <div class="scard-icon scard-icon-red">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+        </div>
+        <div class="scard-body">
+          <span class="slbl">Préstamos en mora</span>
+          <span class="sval">{{ prestamosVencidos.length }}</span>
+        </div>
+      </div>
+      <div class="scard scard-red">
+        <div class="scard-icon scard-icon-red">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="scard-body">
+          <span class="slbl">Deudores con cuotas vencidas</span>
+          <span class="sval">{{ moraPorDeudor.length }}</span>
+        </div>
+      </div>
+      <div class="scard scard-amber">
+        <div class="scard-icon scard-icon-amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="scard-body">
+          <span class="slbl">Deudores con cuotas por vencer</span>
+          <span class="sval">{{ proximasPorDeudor.length }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deudores sin pago reciente -->
+    <section class="card sec-card" aria-labelledby="sec-deudores">
+      <div class="sec-head">
+        <h2 id="sec-deudores" class="card-title">
+          <span class="card-title-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </span>
+          Deudores sin pago reciente
+        </h2>
+        <div class="dias-ctrl">
+          <label for="dias-alerta">Sin pago hace más de</label>
+          <select id="dias-alerta" [(ngModel)]="diasAlerta" (ngModelChange)="onDiasChange()" class="dias-sel" aria-label="Días sin pago">
+            <option [ngValue]="15">15 días</option>
+            <option [ngValue]="30">30 días</option>
+            <option [ngValue]="60">60 días</option>
+            <option [ngValue]="90">90 días</option>
+          </select>
+        </div>
+      </div>
+      @if (deudoresSinPago.length) {
+        <ul class="alerta-list">
+          @for (d of deudoresSinPago; track d.id) {
+            <li class="alerta-item">
+              <div class="alerta-avatar">{{ d.nombre[0] }}{{ (d.apellidos || '')[0] }}</div>
+              <div class="alerta-info">
+                <a [routerLink]="['/deudores', d.id]" class="alerta-name">{{ d.nombre }} {{ d.apellidos }}</a>
+                <span class="alerta-meta">
+                  @if (d.ultimo_pago) {
+                    Último pago: {{ d.ultimo_pago | date:"dd/MM/yyyy" }} (hace {{ diasDesde(d.ultimo_pago) }} días)
+                  } @else {
+                    Sin pagos registrados
+                  }
+                </span>
+              </div>
+              <span class="alerta-pendiente">S/ {{ d.saldo_pendiente | formatNumber }}</span>
+              @if (formatoTelefonoWhatsApp(d.telefono)) {
+                <div class="alerta-wa-btns">
+                  <button type="button" class="btn-wa btn-enviar" (click)="enviarRecordatorio(d)" [disabled]="enviandoDeudorId === d.id" title="Enviar recordatorio por WhatsApp">
+                    {{ enviandoDeudorId === d.id ? 'Enviando…' : 'Enviar' }}
+                  </button>
+                  <a [href]="getWhatsAppUrl(d)" target="_blank" rel="noopener noreferrer" class="btn-wa btn-abrir" title="Abrir WhatsApp">Abrir WA</a>
                 </div>
-                <span class="alerta-pendiente">S/ {{ d.saldo_pendiente | formatNumber }}</span>
-                @if (formatoTelefonoWhatsApp(d.telefono)) {
+              } @else {
+                <span class="btn-wa disabled" title="Agregue teléfono al deudor para enviar WhatsApp">WhatsApp</span>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="sec-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <p>Ningún deudor sin pago en el período seleccionado.</p>
+        </div>
+      }
+    </section>
+
+    <!-- Préstamos en mora -->
+    <section class="card sec-card" aria-labelledby="sec-prestamos">
+      <div class="sec-head">
+        <h2 id="sec-prestamos" class="card-title">
+          <span class="card-title-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+          </span>
+          Préstamos en mora
+        </h2>
+        <a [routerLink]="['/prestamos']" class="btn-link">Ver todos los préstamos</a>
+      </div>
+      @if (prestamosVencidos.length) {
+        <ul class="alerta-list">
+          @for (p of prestamosVencidos; track p.id) {
+            <li class="alerta-item">
+              <div class="alerta-avatar prestamo">{{ p.deudor_nombre?.[0] || 'P' }}</div>
+              <div class="alerta-info">
+                <a [routerLink]="['/deudores', p.deudor_id]" class="alerta-name">{{ p.deudor_nombre }}</a>
+                <span class="alerta-meta">{{ p.descripcion || p.tipo }} — S/ {{ p.monto_original | formatNumber }}</span>
+              </div>
+              <span class="alerta-badge vencido">Vencido</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="sec-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <p>No hay préstamos en estado vencido.</p>
+        </div>
+      }
+    </section>
+
+    <!-- Cuotas próximas a vencer (recordatorios preventivos) -->
+    <section class="card sec-card" aria-labelledby="sec-proximas">
+      <div class="sec-head">
+        <h2 id="sec-proximas" class="card-title">
+          <span class="card-title-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </span>
+          Cuotas por vencer
+        </h2>
+        <div class="dias-ctrl">
+          <label for="dias-proximas">Vencen en los próximos</label>
+          <select id="dias-proximas" [(ngModel)]="diasProximas" (ngModelChange)="onDiasProximasChange()" class="dias-sel" aria-label="Días para vencer">
+            <option [ngValue]="3">3 días</option>
+            <option [ngValue]="7">7 días</option>
+            <option [ngValue]="15">15 días</option>
+            <option [ngValue]="30">30 días</option>
+          </select>
+        </div>
+      </div>
+      @if (proximasPorDeudor.length) {
+        <ul class="alerta-list">
+          @for (p of proximasPorDeudor; track p.deudor_id) {
+            <li class="alerta-item alerta-item-block">
+              <div class="alerta-row">
+                <div class="alerta-avatar">{{ p.nombre[0] }}{{ (p.apellidos || '')[0] }}</div>
+                <div class="alerta-info">
+                  <a [routerLink]="['/deudores', p.deudor_id]" class="alerta-name">{{ p.nombre }} {{ p.apellidos }}</a>
+                  <span class="alerta-meta">{{ p.cuotas.length }} cuota{{ p.cuotas.length !== 1 ? 's' : '' }} por vencer</span>
+                </div>
+                <span class="alerta-pendiente alerta-pendiente-amber">S/ {{ p.total | formatNumber }}</span>
+                @if (getWhatsAppUrlProxima(p)) {
                   <div class="alerta-wa-btns">
-                    <button type="button" class="btn-whatsapp btn-enviar" (click)="enviarRecordatorio(d)" [disabled]="enviandoDeudorId === d.id" title="Enviar recordatorio por WhatsApp (vía servidor)">
-                      {{ enviandoDeudorId === d.id ? 'Enviando…' : 'Enviar' }}
-                    </button>
-                    <a [href]="getWhatsAppUrl(d)" target="_blank" rel="noopener noreferrer" class="btn-whatsapp btn-abrir" title="Abrir WhatsApp con el mensaje preparado">Abrir WA</a>
+                    <a [href]="getWhatsAppUrlProxima(p)" target="_blank" rel="noopener noreferrer" class="btn-wa btn-abrir" title="Abrir WhatsApp">Abrir WA</a>
                   </div>
                 } @else {
-                  <span class="btn-whatsapp disabled" title="Agrega teléfono al deudor para enviar WhatsApp">WhatsApp</span>
+                  <span class="btn-wa disabled" title="Agregue teléfono al deudor para enviar WhatsApp">WhatsApp</span>
                 }
-              </li>
-            }
-          </ul>
-        } @else {
-          <p class="sec-empty">Ningún deudor sin pago en el período seleccionado.</p>
-        }
-      </section>
-
-      <!-- Préstamos en mora -->
-      <section class="sec" aria-labelledby="sec-prestamos">
-        <div class="sec-head">
-          <h2 id="sec-prestamos" class="sec-title">📋 Préstamos en mora</h2>
-          <a [routerLink]="['/prestamos']" class="btn-link">Ver todos los préstamos</a>
+              </div>
+              <ul class="mora-detalle">
+                @for (c of p.cuotas; track c.cuota_id) {
+                  <li>
+                    Cuota {{ c.numero_cuota }} ({{ c.prestamo_desc || ('Préstamo #' + c.prestamo_id) }}) — vence {{ c.fecha_vencimiento | date:"dd/MM/yyyy" }}
+                    ({{ c.dias_para_vencer === 0 ? 'hoy' : ('en ' + c.dias_para_vencer + ' día' + (c.dias_para_vencer !== 1 ? 's' : '')) }}): S/ {{ c.saldo | formatNumber }}
+                  </li>
+                }
+              </ul>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="sec-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <p>No hay cuotas por vencer en el período seleccionado.</p>
         </div>
-        @if (prestamosVencidos.length) {
-          <ul class="alerta-list">
-            @for (p of prestamosVencidos; track p.id) {
-              <li class="alerta-item">
-                <div class="alerta-avatar prestamo">{{ p.deudor_nombre?.[0] || 'P' }}</div>
-                <div class="alerta-info">
-                  <a [routerLink]="['/deudores', p.deudor_id]" class="alerta-name">{{ p.deudor_nombre }}</a>
-                  <span class="alerta-meta">{{ p.descripcion || p.tipo }} — S/ {{ p.monto_original | formatNumber }}</span>
-                </div>
-                <span class="alerta-badge vencido">Vencido</span>
-              </li>
-            }
-          </ul>
-        } @else {
-          <p class="sec-empty">No hay préstamos en estado vencido.</p>
+      }
+    </section>
+
+    <!-- Cuotas en mora -->
+    <section class="card sec-card" aria-labelledby="sec-mora">
+      <div class="sec-head">
+        <h2 id="sec-mora" class="card-title">
+          <span class="card-title-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          Cuotas en mora
+        </h2>
+        @if (moraPorDeudor.length) {
+          <span class="alerta-meta">Total en mora: S/ {{ totalMoraGeneral | formatNumber }}</span>
         }
-      </section>
-    }
+      </div>
+      @if (moraPorDeudor.length) {
+        <ul class="alerta-list">
+          @for (m of moraPorDeudor; track m.deudor_id) {
+            <li class="alerta-item alerta-item-block">
+              <div class="alerta-row">
+                <div class="alerta-avatar prestamo">{{ m.nombre[0] }}{{ (m.apellidos || '')[0] }}</div>
+                <div class="alerta-info">
+                  <a [routerLink]="['/deudores', m.deudor_id]" class="alerta-name">{{ m.nombre }} {{ m.apellidos }}</a>
+                  <span class="alerta-meta">{{ m.cuotas.length }} cuota{{ m.cuotas.length !== 1 ? 's' : '' }} vencida{{ m.cuotas.length !== 1 ? 's' : '' }}</span>
+                </div>
+                <span class="alerta-pendiente">S/ {{ m.total_mora | formatNumber }}</span>
+                @if (getWhatsAppUrlMora(m)) {
+                  <div class="alerta-wa-btns">
+                    <button type="button" class="btn-wa btn-enviar" (click)="enviarRecordatorioMora(m)" [disabled]="enviandoMoraDeudorId === m.deudor_id" title="Enviar recordatorio de mora por WhatsApp">
+                      {{ enviandoMoraDeudorId === m.deudor_id ? 'Enviando…' : 'Enviar' }}
+                    </button>
+                    <a [href]="getWhatsAppUrlMora(m)" target="_blank" rel="noopener noreferrer" class="btn-wa btn-abrir" title="Abrir WhatsApp">Abrir WA</a>
+                  </div>
+                } @else {
+                  <span class="btn-wa disabled" title="Agregue teléfono al deudor para enviar WhatsApp">WhatsApp</span>
+                }
+              </div>
+              <ul class="mora-detalle">
+                @for (c of m.cuotas; track c.cuota_id) {
+                  <li>
+                    Cuota {{ c.numero_cuota }} ({{ c.prestamo_desc || ('Préstamo #' + c.prestamo_id) }}) — vence {{ c.fecha_vencimiento | date:"dd/MM/yyyy" }}, hace {{ c.dias_vencido }} día{{ c.dias_vencido !== 1 ? 's' : '' }}: S/ {{ c.saldo | formatNumber }}
+                  </li>
+                }
+              </ul>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="sec-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <p>No hay cuotas vencidas.</p>
+        </div>
+      }
+    </section>
+  }
+
+  @if (!loading && totalAlertas === 0) {
+    <section class="card empty-card" aria-label="Sin alertas">
+      <div class="empty">
+        <div class="empty-icon-wrap">
+          <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h2 class="empty-title">Sin alertas</h2>
+        <p class="empty-hint">No hay deudores sin pago reciente ni préstamos en mora. Todo está al día.</p>
+      </div>
+    </section>
   }
 </div>

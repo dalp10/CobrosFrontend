@@ -2,15 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { map, tap, of } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Deudor } from '../models/index';
-
-/** Respuesta paginada de GET /deudores */
-export interface DeudoresListResponse {
-  data: Deudor[];
-  total?: number;
-  page?: number;
-  limit?: number;
-}
+import { Deudor, PaginatedResponse } from '../models/index';
 
 const CACHE_TTL_MS = 30_000; // 30 s
 
@@ -25,7 +17,7 @@ export class DeudoresService {
     const now = Date.now();
     if (!forceRefresh && this.cache && now - this.cache.at < CACHE_TTL_MS)
       return of(this.cache.data);
-    return this.http.get<DeudoresListResponse | Deudor[]>(this.url).pipe(
+    return this.http.get<PaginatedResponse<Deudor> | Deudor[]>(this.url).pipe(
       map(res => Array.isArray(res) ? res : (res?.data ?? [])),
       tap(data => { this.cache = { data, at: Date.now() }; })
     );

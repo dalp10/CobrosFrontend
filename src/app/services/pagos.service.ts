@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { map, Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { Pago, PagoForm, PaginatedResponse, ResumenDashboard } from '../models/index';
+import { MetodoPago, Pago, PagoForm, PaginatedResponse, ResumenDashboard } from '../models/index';
 
 export interface PagosFilter { deudor_id?: number; prestamo_id?: number; metodo?: string; desde?: string; hasta?: string; page?: number; limit?: number; }
 
@@ -19,23 +19,23 @@ interface ResumenApi {
 }
 
 function normalizeResumen(r: ResumenApi): ResumenDashboard {
-  const porDeudor = (r.porDeudor ?? r.por_deudor ?? []).map((d: any) => ({
-    id: d.id,
-    nombre: d.nombre,
-    total_pagado: +d.total_pagado,
-    total_prestado: +d.total_prestado,
-    ultimo_pago: d.ultimo_pago ?? '',
-    num_pagos: +d.num_pagos || 0,
+  const porDeudor = ((r.porDeudor ?? r.por_deudor ?? []) as Record<string, unknown>[]).map((d) => ({
+    id: Number(d['id']),
+    nombre: String(d['nombre']),
+    total_pagado: +(d['total_pagado'] as number),
+    total_prestado: +(d['total_prestado'] as number),
+    ultimo_pago: (d['ultimo_pago'] as string) ?? '',
+    num_pagos: +(d['num_pagos'] as number) || 0,
   }));
-  const porMetodo = (r.porMetodo ?? r.por_metodo ?? []).map((m: any) => ({
-    metodo_pago: m.metodo_pago ?? m.metodo,
-    cantidad: +m.cantidad,
-    total: +m.total,
+  const porMetodo = ((r.porMetodo ?? r.por_metodo ?? []) as Record<string, unknown>[]).map((m) => ({
+    metodo_pago: (m['metodo_pago'] ?? m['metodo']) as MetodoPago,
+    cantidad: +(m['cantidad'] as number),
+    total: +(m['total'] as number),
   }));
-  const porMes = (r.porMes ?? r.por_mes ?? []).map((m: any) => ({
-    mes: m.mes,
-    total: +m.total,
-    pagos: +m.pagos || 0,
+  const porMes = ((r.porMes ?? r.por_mes ?? []) as Record<string, unknown>[]).map((m) => ({
+    mes: m['mes'] as string,
+    total: +(m['total'] as number),
+    pagos: +(m['pagos'] as number) || 0,
   }));
   const totales = r.totales
     ? { total_cobrado: +r.totales.total_cobrado, total_prestado: +r.totales.total_prestado }
@@ -59,7 +59,9 @@ export class PagosService {
       map(res => {
         const data = Array.isArray(res) ? res : (res?.data ?? []);
         const total = Array.isArray(res) ? res.length : (res?.total ?? data.length);
-        return { data, total, page: (res as any)?.page ?? 1, limit: (res as any)?.limit ?? data.length };
+        const page = Array.isArray(res) ? 1 : (res?.page ?? 1);
+        const limit = Array.isArray(res) ? data.length : (res?.limit ?? data.length);
+        return { data, total, page, limit };
       })
     );
   }

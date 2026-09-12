@@ -28,8 +28,13 @@ export interface RepartoGasto {
   categoria_nombre?: string | null;
   categoria_color?: string | null;
   recurrente?: boolean;
+  estado?: 'borrador' | 'confirmado';
   participantes?: GastoParticipante[];
   medio_pago?: string | null;
+  fecha_corte?: string | null;
+  fecha_vencimiento?: string | null;
+  meses?: number;
+  cargos?: GastoCargo[];
 }
 
 export interface RepartoReembolso {
@@ -135,6 +140,11 @@ export interface GastoParticipante {
   peso: number;
 }
 
+export interface GastoCargo {
+  miembro_id: number;
+  monto: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RepartoService {
   private http = inject(HttpClient);
@@ -169,6 +179,11 @@ export class RepartoService {
     reparto_id?: number;
     medio_pago?: string | null;
     participantes?: GastoParticipante[];
+    estado?: 'borrador' | 'confirmado';
+    fecha_corte?: string | null;
+    fecha_vencimiento?: string | null;
+    meses?: number;
+    cargos?: GastoCargo[];
   }): Observable<RepartoGasto> {
     return this.http.post<RepartoGasto>(`${this.url}/gastos`, body);
   }
@@ -182,8 +197,17 @@ export class RepartoService {
     categoria_id: number | null;
     medio_pago: string | null;
     participantes: GastoParticipante[];
+    estado: 'borrador' | 'confirmado';
+    fecha_corte: string | null;
+    fecha_vencimiento: string | null;
+    meses: number;
+    cargos: GastoCargo[];
   }>): Observable<RepartoGasto> {
     return this.http.put<RepartoGasto>(`${this.url}/gastos/${id}`, body);
+  }
+
+  confirmarGasto(id: number, medio_pago?: string | null): Observable<RepartoGasto> {
+    return this.http.put<RepartoGasto>(`${this.url}/gastos/${id}/confirmar`, { medio_pago });
   }
 
   deleteGasto(id: number): Observable<{ message: string }> {

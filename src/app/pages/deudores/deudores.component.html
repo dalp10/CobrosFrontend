@@ -1,21 +1,32 @@
 <div class="page">
-  <div class="topbar">
-    <h1 class="title">Deudores</h1>
+  <header class="page-head">
+    <div class="page-head-text">
+      <h1 class="title">Deudores</h1>
+      <p class="subtitle">Gestión de clientes y seguimiento de préstamos y cobros</p>
+    </div>
     <div class="topbar-actions">
       <button type="button" class="btn-export" (click)="exportExcel()" aria-label="Exportar a Excel">📊 Excel</button>
       <button type="button" class="btn-export" (click)="exportPdf()" aria-label="Exportar a PDF">📄 PDF</button>
-      <button class="btn-new" (click)="openModal()">+ Nuevo deudor</button>
+      <button type="button" class="btn-new" (click)="openModal()">+ Nuevo deudor</button>
     </div>
-  </div>
+  </header>
 
-  <!-- ALERTAS: solo un lugar para el selector de días -->
+  @if (!loading && deudores.length) {
+    <div class="stats-bar">
+      <span class="stat-item"><strong>{{ filtered.length }}</strong> {{ filtered.length === 1 ? 'deudor' : 'deudores' }}</span>
+      <span class="stat-divider">·</span>
+      <span class="stat-item">Pendiente total <strong class="stat-pendiente">S/ {{ totalPendienteFiltrado | formatNumber }}</strong></span>
+    </div>
+  }
+
+  <!-- ALERTAS: deudores sin pago reciente -->
   @if (alertas.length) {
-    <div class="alertas-box">
+    <section class="alertas-section" aria-labelledby="alertas-title">
       <div class="alertas-head">
-        <span class="alertas-title">⚠️ Deudores sin pago reciente</span>
+        <h2 id="alertas-title" class="alertas-title">⚠️ Sin pago reciente</h2>
         <div class="dias-ctrl">
-          <span>Mostrar sin pago hace más de</span>
-          <select [(ngModel)]="diasAlerta" (change)="calcularAlertas()" [ngModelOptions]="{standalone:true}" class="dias-sel">
+          <label for="dias-alerta" class="dias-label">Mostrar sin pago hace más de</label>
+          <select id="dias-alerta" [(ngModel)]="diasAlerta" (change)="calcularAlertas()" [ngModelOptions]="{standalone:true}" class="dias-sel">
             <option [ngValue]="15">15 días</option>
             <option [ngValue]="30">30 días</option>
             <option [ngValue]="60">60 días</option>
@@ -23,10 +34,10 @@
           </select>
         </div>
       </div>
-      <div class="alertas-list">
+      <ul class="alertas-list">
         @for (a of alertas; track a.id) {
-          <div class="alerta-item">
-            <div class="alerta-avatar">{{ a.nombre[0] }}{{ a.apellidos[0] }}</div>
+          <li class="alerta-item">
+            <div class="alerta-avatar" aria-hidden="true">{{ a.nombre[0] }}{{ a.apellidos[0] }}</div>
             <div class="alerta-info">
               <a [routerLink]="['/deudores', a.id]" class="alerta-name">{{ a.nombre }} {{ a.apellidos }}</a>
               <span class="alerta-meta">
@@ -35,14 +46,14 @@
               </span>
             </div>
             <span class="alerta-pendiente">S/ {{ a.saldo_pendiente | formatNumber }}</span>
-          </div>
+          </li>
         }
-      </div>
-    </div>
-  } @else {
+      </ul>
+    </section>
+  } @else if (!loading) {
     <div class="dias-config">
-      <span class="dias-label">Alertas: mostrar deudores sin pago hace más de</span>
-      <select [(ngModel)]="diasAlerta" (change)="calcularAlertas()" [ngModelOptions]="{standalone:true}" class="dias-sel">
+      <label for="dias-alerta-empty" class="dias-label">Alertas: mostrar sin pago hace más de</label>
+      <select id="dias-alerta-empty" [(ngModel)]="diasAlerta" (change)="calcularAlertas()" [ngModelOptions]="{standalone:true}" class="dias-sel">
         <option [ngValue]="15">15 días</option>
         <option [ngValue]="30">30 días</option>
         <option [ngValue]="60">60 días</option>
@@ -51,11 +62,11 @@
     </div>
   }
 
-  <div class="search-wrap">
+  <div class="toolbar">
     <div class="search-inner">
       <span class="search-icon" aria-hidden="true">🔍</span>
       <input class="search" type="text" placeholder="Buscar por nombre, apellido o DNI..."
-        [(ngModel)]="searchTerm" (input)="filtrar()" [ngModelOptions]="{standalone: true}">
+        [(ngModel)]="searchTerm" (input)="filtrar()" [ngModelOptions]="{standalone: true}" aria-label="Buscar deudores">
     </div>
     <select class="filtro-estado" [(ngModel)]="filtroEstado" (ngModelChange)="filtrar()" [ngModelOptions]="{standalone: true}" aria-label="Filtrar por estado">
       <option value="todos">Todos</option>
@@ -65,20 +76,24 @@
   </div>
 
   @if (loading) { <app-skeleton [rows]="6" [cells]="3" /> }
+
   @if (!loading && filtered.length === 0) {
-    <div class="empty">
-      <span class="empty-icon">👤</span>
-      <p>Sin deudores encontrados.</p>
+    <div class="empty" role="status">
+      <span class="empty-icon" aria-hidden="true">👤</span>
+      <p class="empty-title">Sin deudores encontrados</p>
       @if (searchTerm.trim()) {
         <p class="empty-hint">Prueba con otro término o <button type="button" class="link-btn" (click)="searchTerm=''; filtrar()">limpiar búsqueda</button>.</p>
       } @else {
+        <p class="empty-hint">Registra tu primer deudor para comenzar a llevar el control de préstamos y cobros.</p>
         <button type="button" class="btn-new btn-empty" (click)="openModal()">+ Nuevo deudor</button>
       }
     </div>
   }
 
   @if (!loading && filtered.length) {
-    <div class="grid">
+    <section class="card-section" aria-labelledby="lista-deudores-title">
+      <h2 id="lista-deudores-title" class="section-title">Listado</h2>
+      <div class="grid">
       @for (d of deudoresParaMostrar; track d.id) {
         <div class="card">
           <div class="chead">
@@ -116,13 +131,14 @@
         <button type="button" class="btn-ver-mas" (click)="verMasDeudores()">Ver {{ cantidadVerMas }} más</button>
       </div>
     }
+    </section>
   }
 </div>
 
 <!-- MODAL -->
 @if (showModal) {
   <div class="overlay" (click)="closeModal()">
-    <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal" (click)="$event.stopPropagation()" appModalFocus (appModalClose)="closeModal()">
       <div class="modal-head">
         <h2>{{ editando ? 'Editar deudor' : 'Nuevo deudor' }}</h2>
         <button class="close-btn" (click)="closeModal()">✕</button>

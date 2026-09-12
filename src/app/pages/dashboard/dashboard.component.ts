@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { PagosService } from '../../services/pagos.service';
 import { PrestamosService } from '../../services/prestamos.service';
 import { NotificationService } from '../../services/notification.service';
+import { AnaliticaService, ProyeccionCobros, RiesgoDeudor, NivelRiesgo } from '../../services/analitica.service';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
 import { FormatPercentPipe } from '../../shared/pipes/format-percent.pipe';
 import { DashboardSkeletonComponent } from './dashboard-skeleton.component';
@@ -23,11 +24,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private pagosService = inject(PagosService);
   private prestamosService = inject(PrestamosService);
+  private analiticaService = inject(AnaliticaService);
   private cdr = inject(ChangeDetectorRef);
   private notify = inject(NotificationService);
 
   data: ResumenDashboard | null = null;
   prestamosVencidos = 0;
+  proyeccion: ProyeccionCobros | null = null;
+  riesgo: RiesgoDeudor[] = [];
   loading = true;
   error = false;
   /** Rango para el gráfico de barras: 0 = todos, 3/6/12 = últimos N meses */
@@ -47,6 +51,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.prestamosService.getAll().subscribe(prestamos => {
       this.prestamosVencidos = prestamos.filter(p => p.estado === 'vencido').length;
       this.cdr.detectChanges();
+    });
+    this.analiticaService.getDashboard().subscribe({
+      next: (a) => {
+        this.proyeccion = a.proyeccion;
+        this.riesgo = a.riesgo;
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges()
     });
     this.pagosService.getResumen(forceRefresh).subscribe({
       next: (r) => {
@@ -337,6 +349,19 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const date = new Date(y, m - 1, 1);
     const short = date.toLocaleDateString('es-PE', { month: 'short', year: '2-digit' });
     return short.replace('.', ''); // "mar 25" o "mar. 25" -> "mar 25"
+  }
+
+  /** Top 5 deudores por nivel de riesgo (ya viene ordenado por el backend) */
+  get riesgoTop(): RiesgoDeudor[] {
+    return this.riesgo.slice(0, 5);
+  }
+
+  get riesgoAltoCount(): number {
+    return this.riesgo.filter(r => r.nivel === 'alto').length;
+  }
+
+  riesgoLabel(nivel: NivelRiesgo): string {
+    return { bajo: 'Bajo', medio: 'Medio', alto: 'Alto' }[nivel];
   }
 
   metodoColor(m: string): string {

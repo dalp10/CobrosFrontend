@@ -5,16 +5,14 @@
 ### 1. ~~Entornos separados (development / production)~~ ✅ Hecho
 - Creado `environment.development.ts` y `fileReplacements` en `angular.json`.
 
-### 2. Usar los servicios HTTP en lugar de llamar `HttpClient` desde los componentes
-- **Ahora:** Dashboard, deudores, deudor-detail, pagos, prestamos y usuarios llaman `this.http.get/post(...)` con `environment.apiUrl` directamente.
-- **Mejorar:** Mover toda la lógica de API a los servicios (`DeudoresService`, `PagosService`, `PrestamosService`) y que los componentes solo llamen a los servicios. Así se centraliza la URL, los tipos y el manejo de errores.
+### 2. ~~Usar los servicios HTTP en lugar de llamar `HttpClient` desde los componentes~~ ✅ Hecho
+- Toda la lógica de API vive en los servicios (`DeudoresService`, `PagosService`, `PrestamosService`, `UsuariosService`, etc.); ningún componente inyecta `HttpClient` directamente.
 
 ### 3. ~~Ruta y menú para Usuarios~~ ✅ Hecho
 - Ruta `usuarios` y enlace en el sidebar añadidos.
 
-### 4. Tipado fuerte: quitar `any` y definir modelos
-- **Ahora:** Muchos `get<any>()`, `(d: any)`, `e: any`, y no hay interfaz `Usuario` para la API de usuarios.
-- **Mejorar:** Usar los modelos existentes (`Deudor`, `Pago`, `Prestamo`, etc.) en los subscribes y respuestas; crear interfaz `Usuario` y tipar listas y formularios de usuarios. Reduce bugs y mejora el autocompletado.
+### 4. ~~Tipado fuerte: quitar `any` y definir modelos~~ ✅ Hecho
+- Interfaz `Usuario` en `models/index.ts`, normalización de `pagos.service.ts` tipada con `Record<string, unknown>`, y `body`/`cuotas` en `deudor-detail` tipados con `Partial<Prestamo>` / `Cuota[]`.
 
 ---
 
@@ -23,43 +21,36 @@
 ### 5. ~~Servicio de notificaciones (toast / snackbar)~~ ✅ Hecho
 - `NotificationService` + `ToastContainerComponent` integrados en login, guard, deudores, pagos, usuarios, deudor-detail.
 
-### 6. Helpers compartidos para formato y porcentajes
-- **Ahora:** `fmt()` y `pct()` (o equivalentes) repetidos en dashboard, deudores, deudor-detail, pagos, prestamos.
-- **Mejorar:** Un solo lugar (pipe `FormatNumberPipe` / `FormatPercentPipe` o util en `shared/`) y usarlo en todos los templates. Misma lógica en exports (CSV/PDF).
+### 6. ~~Helpers compartidos para formato y porcentajes~~ ✅ Hecho
+- `FormatNumberPipe` / `FormatPercentPipe` en templates; `shared/utils/format.ts` (`formatMonto`, `formatSoles`, `formatFecha`) para los exports CSV/PDF (dashboard, deudor-detail, prestamos, deudores).
 
-### 7. Patrón único de “cargar → listar → error”
-- **Ahora:** Cada pantalla repite `loading = true`, `subscribe({ next, error })`, `loading = false`, `cdr.detectChanges()`.
-- **Mejorar:** Servicios que devuelvan `Observable<T>` y, si quieres, un patrón reutilizable (ej. componente “con loading” o directiva) o simplemente un método helper que maneje loading + error + mensaje. Así se reduce duplicación y se unifica el comportamiento.
+### 7. ~~Patrón único de “cargar → listar → error”~~ ✅ Hecho
+- `shared/utils/loading.ts` (`withLoading()`) encapsula `loading = false` + `cdr.detectChanges()` en `next`/`error`; aplicado en `prestamos.component.ts` (`cargar()`), `deudores.component.ts` (`load()`) y `pagos.component.ts` (`buscar()`). Flujos multi-paso (alertas, dashboard, deudor-detail, usuarios) se dejan como están para no añadir complejidad sin beneficio claro.
 
 ### 8. ~~Validar expiración del JWT al cargar la app~~ ✅ Hecho
 - `AuthService` y `authGuard` comprueban `exp` del token; si está expirado se hace logout y redirección a login.
 
-### 9. Control de acceso por rol (opcional)
-- **Ahora:** Cualquier usuario logueado ve todo el menú (dashboard, deudores, préstamos, pagos).
-- **Mejorar:** Si el backend distingue roles (admin, cobrador, etc.), un `roleGuard` o comprobación por ruta y ocultar en el menú o deshabilitar rutas según `currentUser().rol`.
+### 9. ~~Control de acceso por rol~~ ✅ Hecho
+- `guards/role.guard.ts` (`roleGuard(['admin'])`) protege `/usuarios`; el sidebar oculta el enlace a usuarios si `currentUser().rol !== 'admin'`.
 
 ---
 
 ## Prioridad baja / mejoras finas
 
-### 10. Caché o refetch suave
-- **Ahora:** Cada vez que entras a una pantalla se hace un nuevo GET (sin caché).
-- **Mejorar:** Si los datos no cambian cada segundo, se puede cachear en el servicio (por ejemplo con un `BehaviorSubject` o signal + “última carga”) y opción “Actualizar” o refetch al volver a la pestaña. No es obligatorio pero mejora sensación de velocidad.
+### 10. ~~Caché o refetch suave~~ ✅ Hecho
+- `DeudoresService`, `PrestamosService`, `PagosService` (resumen) y `UsuariosService` cachean `getAll()`/`getResumen()` 30-45s con `invalidateCache()` tras create/update/delete.
 
-### 11. Un solo archivo de modelos
-- **Ahora:** `models/index.ts` y `models/models.ts` con las mismas interfaces.
-- **Mejorar:** Dejar un solo archivo (por ejemplo `index.ts` que reexporte) para no duplicar definiciones.
+### 11. ~~Un solo archivo de modelos~~ ✅ Hecho
+- Solo existe `models/index.ts`.
 
-### 12. Exportación (CSV/PDF) en servicio o util compartido
-- **Ahora:** Lógica de CSV/Excel y PDF repartida en deudor-detail y pagos con patrones similares.
-- **Mejorar:** Un servicio o util (ej. `ExportService` o `exportCsv`, `exportPdf`) que reciba datos y opciones y genere el archivo. Reutilizar en todas las pantallas que exporten.
+### 12. ~~Exportación (CSV/PDF) en servicio o util compartido~~ ✅ Hecho
+- `services/export.service.ts` (`downloadCsv`, `downloadPdfFromHtml`) usado por deudores, deudor-detail, pagos, prestamos y reparto.
 
-### 13. Tests
-- **Ahora:** No se ven tests en el reporte.
-- **Mejorar:** Añadir al menos tests unitarios para servicios (auth, deudores, pagos, prestamos) y para el guard; opcionalmente un test de integración para el flujo de login.
+### 13. ~~Tests~~ ✅ Hecho
+- Tests unitarios con `HttpTestingController` para `AuthService` (login, logout, refresh, restauración de sesión), `DeudoresService` (cache 30s e invalidación), `PagosService` (normalización de `getAll`/`getResumen` en camelCase y snake_case) y `PrestamosService` (cache por deudor, cuotas, invalidación). Total 27 tests pasando (`npm test -- --watch=false`).
 
-### 14. Accesibilidad y SEO
-- Revisar labels en formularios, contraste, y si hace falta navegación por teclado. Si la app tiene partes públicas, considerar meta tags y estructura para SEO.
+### 14. ~~Accesibilidad y SEO~~ ✅ Hecho
+- `index.html` ya tiene `lang="es"` y meta description. Revisados formularios y botones de icono: todos los botones de solo-icono tienen `aria-label`. Se añadió `alt` a las imágenes de comprobante y al modal de imagen ampliada en `deudor-detail`, y `aria-label="Cerrar"` al botón de cierre del modal.
 
 ---
 
@@ -84,23 +75,23 @@ Si indicas por dónde quieres empezar (por ejemplo: “entornos”, “servicios
 ### 15. ~~Confirmación antes de borrar~~ ✅ Hecho
 - En `eliminarPago()` (deudor-detail) se usa `confirm()` además del modal.
 
-### 16. Skeletons en lugar de “Cargando...”
-- Sustituir el texto “Cargando...” por skeletons (bloques grises animados) en listas y dashboard. La app se siente más rápida y profesional.
+### 16. ~~Skeletons en lugar de “Cargando...”~~ ✅ Hecho
+- `shared/skeleton/skeleton.component.ts` (`<app-skeleton>`) en dashboard, deudores, deudor-detail (incl. cronograma), pagos, prestamos, usuarios, alertas y reparto.
 
-### 17. Paginación o “Cargar más”
-- Si las listas pueden ser muy largas (ej. pagos con `limit=200`), añadir paginación en el backend/frontend o un botón “Cargar más” para no traer todo de golpe y mejorar tiempos de carga.
+### 17. ~~Paginación o “Cargar más”~~ ✅ Hecho
+- Deudores, préstamos y pagos tienen "Ver N más" client-side con `PAGE_SIZE`/`*Visible`; pagos además pagina en el backend (`PagosFilter.page/limit`).
 
-### 18. Reintento en errores de red
-- Para fallos por red (sin respuesta, timeout), usar `retry` o “Reintentar” en el mensaje de error. Útil en conexiones inestables.
+### 18. ~~Reintento en errores de red~~ ✅ Hecho
+- `interceptors/retry.interceptor.ts` reintenta una vez (con delay de 800ms) en errores de red (status 0) o 5xx; no reintenta 4xx.
 
-### 19. Manejo global de errores
-- Un `ErrorHandler` o interceptor que capture errores no manejados y muestre un mensaje genérico o envíe a una página de error, en lugar de fallar en silencio.
+### 19. ~~Manejo global de errores~~ ✅ Hecho
+- `global-error-handler.ts` (`GlobalErrorHandler`) captura errores no controlados y muestra un mensaje genérico vía `NotificationService`; los `HttpErrorResponse` (ya manejados por interceptores/componentes) solo se loguean.
 
-### 20. Diseño responsive / móvil
-- Revisar que el sidebar y las tablas se usen bien en pantallas pequeñas (menú colapsable, tablas con scroll horizontal o cards).
+### 20. ~~Diseño responsive / móvil~~ ✅ Hecho (básico)
+- Sidebar colapsable con `.menu-toggle` y media query `@media (max-width: 768px)` en `layout.component.css`.
 
-### 21. Seguridad del token (opcional)
-- Valorar usar `sessionStorage` en lugar de `localStorage` para que el token se borre al cerrar la pestaña, o que el backend use cookies httpOnly si quieres más seguridad.
+### 21. ~~Seguridad del token (opcional)~~ ✅ Hecho
+- El access token se guarda en `sessionStorage` (se borra al cerrar la pestaña) en `auth.service.ts` y `auth.guard.ts`. El refresh token ya usa cookie httpOnly.
 
-### 22. Títulos de página por ruta
-- Actualizar `document.title` (o meta) según la ruta (ej. “Dashboard – Cobros”, “Deudores – Cobros”) para pestañas y favoritos.
+### 22. ~~Títulos de página por ruta~~ ✅ Hecho
+- `title-strategy.ts` (`CobrosTitleStrategy`) + `title` en cada ruta de `app.routes.ts`: pestañas muestran “Dashboard – Cobros”, “Deudores – Cobros”, etc.

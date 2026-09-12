@@ -1,16 +1,21 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { RepartoService, RepartoResumen, RepartoMiembro, RepartoGasto, RepartoReembolso, RepartoCategoria, RepartoGrupo, RepartoPendientes, RepartoPresupuesto, RepartoAdjunto, RepartoReembolsoAdjunto, SugerenciaReembolso, MEDIOS_PAGO } from '../../services/reparto.service';
 import { NotificationService } from '../../services/notification.service';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
+import { ModalFocusDirective } from '../../shared/directives/modal-focus.directive';
+import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-reparto',
   standalone: true,
-  imports: [DatePipe, FormsModule, FormatNumberPipe],
+  imports: [DatePipe, FormsModule, FormatNumberPipe, ModalFocusDirective, SkeletonComponent],
   templateUrl: './reparto.component.html',
   styleUrl: './reparto.component.css',
 })
@@ -18,6 +23,11 @@ export class RepartoComponent implements OnInit {
   private repartoService = inject(RepartoService);
   private notify = inject(NotificationService);
   private cdr = inject(ChangeDetectorRef);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  /** Submenú activo: resumen | agregar-persona | presupuesto | categorias | gastos | reembolsos | reportes */
+  tabActivo: 'resumen' | 'agregar-persona' | 'presupuesto' | 'categorias' | 'gastos' | 'reembolsos' | 'reportes' = 'resumen';
 
   loading = true;
   resumen: RepartoResumen | null = null;
@@ -46,6 +56,11 @@ export class RepartoComponent implements OnInit {
     categoria_id: null as number | null,
     medio_pago: '' as string,
     participantes: [] as { miembro_id: number; nombre: string; participa: boolean; peso: number }[],
+    es_borrador: false,
+    fecha_corte: '' as string,
+    fecha_vencimiento: '' as string,
+    meses: 1 as number,
+    cargos: [] as { miembro_id: number; nombre: string; monto: number | null }[],
   };
   gastoEditando: RepartoGasto | null = null;
   gastoFormEdit = {
@@ -57,11 +72,18 @@ export class RepartoComponent implements OnInit {
     categoria_id: null as number | null,
     medio_pago: '' as string,
     participantes: [] as { miembro_id: number; nombre: string; participa: boolean; peso: number }[],
+    fecha_corte: '' as string,
+    fecha_vencimiento: '' as string,
+    meses: 1 as number,
+    cargos: [] as { miembro_id: number; nombre: string; monto: number | null }[],
   };
   savingGastoEdit = false;
   errGastoEdit = '';
   gastoAAnular: RepartoGasto | null = null;
   deletingGasto = false;
+  gastoAConfirmar: RepartoGasto | null = null;
+  confirmarGastoMedioPago = '' as string;
+  confirmandoGasto = false;
   reembolsoForm = {
     de_miembro_id: null as number | null,
     para_miembro_id: null as number | null,
@@ -94,6 +116,8 @@ export class RepartoComponent implements OnInit {
   reporteHasta = '';
   descargandoReporte = false;
   descargandoPdf = false;
+  incluirAdjuntosPdf = false;
+  descargandoPdfBorradores = false;
 
   /** Período para la vista principal (resumen, gastos, reembolsos) */
   periodoDesde = '';
@@ -102,6 +126,8 @@ export class RepartoComponent implements OnInit {
   periodoHastaInput = '';
   gastoSearchText = '';
   gastoOrden: 'fecha' | 'monto' | 'concepto' = 'fecha';
+  reembolsoSearchText = '';
+  reembolsoOrden: 'fecha' | 'monto' | 'nombre' = 'fecha';
 
   repartoId = 1;
   miembroIdFilter: number | null = null;
@@ -126,8 +152,22 @@ export class RepartoComponent implements OnInit {
   repitiendoGastoId: number | null = null;
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe((qp) => {
+      const t = qp['tab'];
+      if (t && ['resumen', 'agregar-persona', 'presupuesto', 'categorias', 'gastos', 'reembolsos', 'reportes'].includes(t))
+        this.tabActivo = t;
+      this.cdr.detectChanges();
+    });
     this.loadGrupos();
     this.load();
+  }
+
+  irATab(tab: 'resumen' | 'agregar-persona' | 'presupuesto' | 'categorias' | 'gastos' | 'reembolsos' | 'reportes'): void {
+    this.tabActivo = tab;
+    if (tab === 'agregar-persona') this.showNuevoMiembro = true;
+    if (tab === 'presupuesto') this.showPresupuesto = true;
+    this.router.navigate([], { queryParams: { tab }, queryParamsHandling: 'merge', relativeTo: this.route });
+    this.cdr.detectChanges();
   }
 
   loadGrupos(): void {
@@ -242,6 +282,62 @@ export class RepartoComponent implements OnInit {
     return list;
   }
 
+  get hayGastosConParticipantes(): boolean {
+    return !!this.resumen?.gastos?.some(g => !!g.participantes && g.participantes.length > 0);
+  }
+
+  get reembolsosFiltradosOrdenados(): RepartoReembolso[] {
+    if (!this.resumen?.reembolsos?.length) return [];
+    let list = [...this.resumen.reembolsos];
+    const q = (this.reembolsoSearchText || '').toLowerCase().trim();
+    if (q) list = list.filter(r =>
+      (r.concepto || '').toLowerCase().includes(q) ||
+      (r.de_nombre || '').toLowerCase().includes(q) ||
+      (r.para_nombre || '').toLowerCase().includes(q));
+    if (this.reembolsoOrden === 'fecha') list.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+    else if (this.reembolsoOrden === 'monto') list.sort((a, b) => (b.monto ?? 0) - (a.monto ?? 0));
+    else if (this.reembolsoOrden === 'nombre') list.sort((a, b) => (a.de_nombre || '').localeCompare(b.de_nombre || ''));
+    return list;
+  }
+
+  /** True si la fecha dada cae fuera del período (periodoDesde/periodoHasta) actualmente mostrado. */
+  fechaFueraDePeriodo(fecha: string): boolean {
+    if (!fecha) return false;
+    if (this.periodoDesde && fecha < this.periodoDesde) return true;
+    if (this.periodoHasta && fecha > this.periodoHasta) return true;
+    return false;
+  }
+
+  /** Nombres de los participantes de un gasto (si se repartió solo entre algunos miembros). Vacío si se reparte entre todos. */
+  getParticipantesLabel(g: RepartoGasto): string {
+    if (!g.participantes?.length) return '';
+    return g.participantes
+      .map(p => this.resumen?.miembros?.find(m => m.id === p.miembro_id)?.nombre || '?')
+      .join(', ');
+  }
+
+  /** Datos para el gráfico de evolución mensual de gastos totales. */
+  get evolucionGastosChart(): { mes: string; total: number; pct: number }[] {
+    const items = this.resumen?.resumen_por_mes ?? [];
+    if (!items.length) return [];
+    const max = Math.max(...items.map(it => it.total), 1);
+    return items.map(it => ({ mes: it.mes, total: it.total, pct: Math.round((it.total / max) * 100) }));
+  }
+
+  /** Datos para el gráfico comparativo de pagado vs cuota por persona. */
+  get pagadoVsCuotaChart(): { nombre: string; pagado: number; cuota: number; pagadoPct: number; cuotaPct: number }[] {
+    const miembros = this.resumen?.miembros ?? [];
+    if (!miembros.length) return [];
+    const max = Math.max(...miembros.map(m => Math.max(m.total_pagado_servicios, m.cuota_que_le_toca)), 1);
+    return miembros.map(m => ({
+      nombre: m.nombre,
+      pagado: m.total_pagado_servicios,
+      cuota: m.cuota_que_le_toca,
+      pagadoPct: Math.round((m.total_pagado_servicios / max) * 100),
+      cuotaPct: Math.round((m.cuota_que_le_toca / max) * 100),
+    }));
+  }
+
   get presupuestoVsReal(): { techo: number; gastado: number; porcentaje: number; mesLabel: string } | null {
     if (!this.resumen) return null;
     const today = new Date();
@@ -267,6 +363,38 @@ export class RepartoComponent implements OnInit {
     return p ? Math.min(p.porcentaje, 100) : 0;
   }
 
+  /** Cargos extra para un gasto: incluye a todos los miembros (editable para cualquiera), sugiriendo cargo_adicional_mensual * meses para quien lo tenga configurado. */
+  private cargosDefault(meses: number): { miembro_id: number; nombre: string; monto: number | null }[] {
+    const miembros = this.resumen?.miembros ?? [];
+    return miembros.map(m => ({
+      miembro_id: m.id,
+      nombre: m.nombre,
+      monto: (m.cargo_adicional_mensual ?? 0) > 0 ? Math.round((m.cargo_adicional_mensual ?? 0) * meses * 100) / 100 : 0,
+    }));
+  }
+
+  /** Recalcula los cargos sugeridos del formulario de nuevo gasto cuando cambian los meses (solo para quienes tienen cargo configurado, sin pisar los editados a mano). */
+  actualizarCargosPorMesesNuevo(): void {
+    const meses = this.gastoForm.meses || 1;
+    for (const c of this.gastoForm.cargos) {
+      const m = this.resumen?.miembros.find(x => x.id === c.miembro_id);
+      if ((m?.cargo_adicional_mensual ?? 0) > 0) {
+        c.monto = Math.round((m!.cargo_adicional_mensual ?? 0) * meses * 100) / 100;
+      }
+    }
+  }
+
+  /** Recalcula los cargos sugeridos del formulario de edición cuando cambian los meses (solo para quienes tienen cargo configurado, sin pisar los editados a mano). */
+  actualizarCargosPorMesesEdit(): void {
+    const meses = this.gastoFormEdit.meses || 1;
+    for (const c of this.gastoFormEdit.cargos) {
+      const m = this.resumen?.miembros.find(x => x.id === c.miembro_id);
+      if ((m?.cargo_adicional_mensual ?? 0) > 0) {
+        c.monto = Math.round((m!.cargo_adicional_mensual ?? 0) * meses * 100) / 100;
+      }
+    }
+  }
+
   repetirUltimoGasto(): void {
     const gastos = this.resumen?.gastos;
     if (!gastos?.length) { this.notify.info('No hay gastos para repetir'); return; }
@@ -287,6 +415,11 @@ export class RepartoComponent implements OnInit {
         participa: partMap ? partMap.has(m.id) : true,
         peso: partMap ? (partMap.get(m.id) ?? 1) : 1,
       })),
+      es_borrador: false,
+      fecha_corte: '',
+      fecha_vencimiento: '',
+      meses: u.meses ?? 1,
+      cargos: this.cargosDefault(u.meses ?? 1),
     };
     this.showGasto = true;
     this.cdr.detectChanges();
@@ -298,6 +431,7 @@ export class RepartoComponent implements OnInit {
     if (!this.showGasto) this.resetGastoForm();
     else if (this.gastoForm.participantes.length === 0 && this.resumen?.miembros?.length)
       this.gastoForm.participantes = this.resumen.miembros.map(m => ({ miembro_id: m.id, nombre: m.nombre, participa: true, peso: 1 }));
+    if (this.showGasto && this.gastoForm.cargos.length === 0) this.gastoForm.cargos = this.cargosDefault(this.gastoForm.meses || 1);
     this.cdr.detectChanges();
   }
 
@@ -312,12 +446,18 @@ export class RepartoComponent implements OnInit {
       categoria_id: null,
       medio_pago: '',
       participantes: miembros.map(m => ({ miembro_id: m.id, nombre: m.nombre, participa: true, peso: 1 })),
+      es_borrador: false,
+      fecha_corte: '',
+      fecha_vencimiento: '',
+      meses: 1,
+      cargos: this.cargosDefault(1),
     };
   }
 
   submitGasto(): void {
     if (!this.gastoForm.concepto?.trim() || this.gastoForm.monto_total == null || this.gastoForm.monto_total <= 0 || this.gastoForm.pagado_por_id == null) {
       this.errGasto = 'Completa concepto, monto y quién pagó';
+      this.notify.error(this.errGasto);
       this.cdr.detectChanges();
       return;
     }
@@ -326,6 +466,9 @@ export class RepartoComponent implements OnInit {
     const participantesPayload = this.gastoForm.participantes
       .filter(p => p.participa && p.peso != null && p.peso > 0)
       .map(p => ({ miembro_id: p.miembro_id, peso: p.peso }));
+    const cargosPayload = this.gastoForm.cargos
+      .filter(c => c.monto != null && c.monto > 0)
+      .map(c => ({ miembro_id: c.miembro_id, monto: c.monto as number }));
     this.repartoService.createGasto({
       concepto: this.gastoForm.concepto.trim(),
       monto_total: this.gastoForm.monto_total,
@@ -335,19 +478,30 @@ export class RepartoComponent implements OnInit {
       categoria_id: this.gastoForm.categoria_id ?? undefined,
       reparto_id: this.repartoId,
       participantes: participantesPayload.length > 0 ? participantesPayload : undefined,
-      medio_pago: this.gastoForm.medio_pago || undefined,
+      medio_pago: this.gastoForm.es_borrador ? undefined : (this.gastoForm.medio_pago || undefined),
+      estado: this.gastoForm.es_borrador ? 'borrador' : 'confirmado',
+      fecha_corte: this.gastoForm.fecha_corte || null,
+      fecha_vencimiento: this.gastoForm.fecha_vencimiento || null,
+      meses: this.gastoForm.meses || 1,
+      cargos: cargosPayload.length > 0 ? cargosPayload : undefined,
     }).subscribe({
       next: () => {
         this.savingGasto = false;
         this.showGasto = false;
+        const fechaGasto = this.gastoForm.fecha;
+        const eraBorrador = this.gastoForm.es_borrador;
         this.resetGastoForm();
         this.load();
-        this.notify.success('Gasto registrado');
+        this.notify.success(eraBorrador ? 'Gasto guardado como pendiente de pago' : 'Gasto registrado');
+        if (this.fechaFueraDePeriodo(fechaGasto)) {
+          this.notify.info('El gasto se guardó, pero su fecha está fuera del período mostrado. Cambia a "Todo" para verlo.');
+        }
         this.cdr.detectChanges();
       },
       error: (e) => {
         this.savingGasto = false;
         this.errGasto = e.error?.error || 'Error al guardar';
+        this.notify.error(this.errGasto);
         this.cdr.detectChanges();
       },
     });
@@ -373,6 +527,13 @@ export class RepartoComponent implements OnInit {
         participa: partMap ? partMap.has(m.id) : true,
         peso: partMap ? (partMap.get(m.id) ?? 1) : 1,
       })),
+      fecha_corte: g.fecha_corte ?? '',
+      fecha_vencimiento: g.fecha_vencimiento ?? '',
+      meses: g.meses ?? 1,
+      cargos: this.cargosDefault(g.meses ?? 1).map(c => {
+        const existente = g.cargos?.find(gc => gc.miembro_id === c.miembro_id);
+        return existente ? { ...c, monto: existente.monto } : c;
+      }),
     };
     this.errGastoEdit = '';
     this.cdr.detectChanges();
@@ -388,6 +549,7 @@ export class RepartoComponent implements OnInit {
     if (!this.gastoEditando) return;
     if (!this.gastoFormEdit.concepto?.trim() || this.gastoFormEdit.monto_total == null || this.gastoFormEdit.monto_total <= 0 || this.gastoFormEdit.pagado_por_id == null) {
       this.errGastoEdit = 'Completa concepto, monto y quién pagó';
+      this.notify.error(this.errGastoEdit);
       this.cdr.detectChanges();
       return;
     }
@@ -396,6 +558,9 @@ export class RepartoComponent implements OnInit {
     const participantesPayload = this.gastoFormEdit.participantes
       .filter(p => p.participa && p.peso != null && p.peso > 0)
       .map(p => ({ miembro_id: p.miembro_id, peso: p.peso }));
+    const cargosPayload = this.gastoFormEdit.cargos
+      .filter(c => c.monto != null && c.monto > 0)
+      .map(c => ({ miembro_id: c.miembro_id, monto: c.monto as number }));
     this.repartoService.updateGasto(this.gastoEditando.id, {
       concepto: this.gastoFormEdit.concepto.trim(),
       monto_total: this.gastoFormEdit.monto_total,
@@ -405,6 +570,10 @@ export class RepartoComponent implements OnInit {
       categoria_id: this.gastoFormEdit.categoria_id ?? undefined,
       participantes: participantesPayload,
       medio_pago: this.gastoFormEdit.medio_pago || undefined,
+      fecha_corte: this.gastoFormEdit.fecha_corte || null,
+      fecha_vencimiento: this.gastoFormEdit.fecha_vencimiento || null,
+      meses: this.gastoFormEdit.meses || 1,
+      cargos: cargosPayload,
     }).subscribe({
       next: () => {
         this.savingGastoEdit = false;
@@ -416,6 +585,38 @@ export class RepartoComponent implements OnInit {
       error: (e) => {
         this.savingGastoEdit = false;
         this.errGastoEdit = e.error?.error || 'Error al guardar';
+        this.notify.error(this.errGastoEdit);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  abrirConfirmarGasto(g: RepartoGasto): void {
+    this.gastoAConfirmar = g;
+    this.confirmarGastoMedioPago = g.medio_pago || '';
+    this.cdr.detectChanges();
+  }
+
+  cerrarModalConfirmarGasto(): void {
+    this.gastoAConfirmar = null;
+    this.cdr.detectChanges();
+  }
+
+  confirmarPagoGasto(): void {
+    if (!this.gastoAConfirmar) return;
+    const concepto = this.gastoAConfirmar.concepto;
+    this.confirmandoGasto = true;
+    this.repartoService.confirmarGasto(this.gastoAConfirmar.id, this.confirmarGastoMedioPago || undefined).subscribe({
+      next: () => {
+        this.confirmandoGasto = false;
+        this.gastoAConfirmar = null;
+        this.load();
+        this.notify.success('Pago confirmado: ' + concepto);
+        this.cdr.detectChanges();
+      },
+      error: (e) => {
+        this.confirmandoGasto = false;
+        this.notify.error(e.error?.error || 'Error al confirmar pago');
         this.cdr.detectChanges();
       },
     });
@@ -530,7 +731,7 @@ export class RepartoComponent implements OnInit {
     const desde = this.reporteDesde?.trim() || undefined;
     const hasta = this.reporteHasta?.trim() || undefined;
     this.repartoService.getResumen(desde, hasta, this.repartoId).subscribe({
-      next: (r) => {
+      next: async (r) => {
         try {
           const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
           const margin = 16;
@@ -548,12 +749,15 @@ export class RepartoComponent implements OnInit {
           const drawHeader = () => {
             doc.setFillColor(...primaryColor);
             doc.rect(0, 0, pageW, headerH, 'F');
+            doc.setFillColor(...darkColor);
+            doc.rect(0, headerH, pageW, 1.2, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text('REPARTO DE GASTOS', margin, 12);
-            doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('DALP Cobros', pageW - margin, 8, { align: 'right' });
             const periodo = (desde && hasta) ? `Período: ${this.formatFecha(desde)} — ${this.formatFecha(hasta)}` : 'Período: todo';
             doc.text(periodo, margin, 18);
             doc.setTextColor(0, 0, 0);
@@ -591,11 +795,27 @@ export class RepartoComponent implements OnInit {
           doc.text(`Cuota por persona: S/ ${this.formatNum(r.cuota_por_persona)}`, margin + 4, y + 10);
           y += 22;
 
+          const miembrosConCargo = r.miembros.filter(m => (m.cargo_adicional_mensual ?? 0) > 0);
+          if (miembrosConCargo.length) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('Cargos adicionales por mes', margin, y);
+            y += 6;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            for (const m of miembrosConCargo) {
+              doc.text(`• ${m.nombre} paga S/ ${this.formatNum(m.cargo_adicional_mensual ?? 0)} extra cada mes por el aire acondicionado (parte del recibo de luz). Este monto ya está sumado a su cuota.`, margin, y);
+              y += 5;
+            }
+            y += 5;
+          }
+
           if (r.miembros.length) {
             addSectionTitle('Participantes y saldos');
             const bodyMiembros = r.miembros.map(m => [
               m.nombre,
               `S/ ${this.formatNum(m.total_pagado_servicios)}`,
+              `S/ ${this.formatNum(m.cargo_adicional_mensual ?? 0)}`,
               `S/ ${this.formatNum(m.cuota_que_le_toca)}`,
               `S/ ${this.formatNum(m.reembolsos_recibidos)}`,
               `S/ ${this.formatNum(m.reembolsos_dados)}`,
@@ -603,7 +823,7 @@ export class RepartoComponent implements OnInit {
             ]);
             autoTable(doc, {
               startY: y,
-              head: [['Nombre', 'Pagó servicios', 'Cuota', 'Reemb. recibidos', 'Reemb. dados', 'Saldo']],
+              head: [['Nombre', 'Pagó servicios', 'Cargo extra/mes', 'Cuota', 'Reemb. recibidos', 'Reemb. dados', 'Saldo']],
               body: bodyMiembros,
               margin: { left: margin, right: margin },
               theme: 'striped',
@@ -621,17 +841,25 @@ export class RepartoComponent implements OnInit {
                 3: { halign: 'right' },
                 4: { halign: 'right' },
                 5: { halign: 'right' },
+                6: { halign: 'right' },
               },
               didParseCell: (data) => {
-                if (data.section === 'body' && data.column.index === 5) {
+                if (data.section === 'body' && data.column.index === 6) {
                   const val = r.miembros[data.row.index]?.saldo ?? 0;
                   if (val > 0) data.cell.styles.textColor = greenColor;
                   else if (val < 0) data.cell.styles.textColor = redColor;
                 }
               },
             });
-            doc.setTextColor(0, 0, 0);
-            y = ((doc as any).lastAutoTable?.finalY ?? y) + 12;
+            y = ((doc as any).lastAutoTable?.finalY ?? y) + 5;
+            if (r.miembros.some(m => (m.cargo_adicional_mensual ?? 0) > 0)) {
+              doc.setFontSize(8);
+              doc.setTextColor(120, 120, 120);
+              doc.text('* "Cargo extra/mes" es un monto adicional que ese miembro asume cada mes por el aire acondicionado (parte del recibo de luz), incluido en su cuota.', margin, y);
+              doc.setTextColor(0, 0, 0);
+              y += 5;
+            }
+            y += 7;
           }
 
           if (r.gastos.length) {
@@ -639,13 +867,16 @@ export class RepartoComponent implements OnInit {
             if (y > pageH - 50) { doc.addPage(); drawHeader(); addSectionTitle('Gastos'); }
             autoTable(doc, {
               startY: y,
-              head: [['Concepto', 'Fecha', 'Monto', 'Pagado por']],
+              head: [['Concepto', 'Fecha', 'Corte', 'Vence', 'Monto', 'Pagado por']],
               body: r.gastos.map(g => [
                 (g.concepto || '') + (g.categoria_nombre ? ' · ' + g.categoria_nombre : ''),
                 this.formatFecha(g.fecha),
+                g.fecha_corte ? this.formatFecha(g.fecha_corte) : '—',
+                g.fecha_vencimiento ? this.formatFecha(g.fecha_vencimiento) : '—',
                 `S/ ${this.formatNum(g.monto_total)}`,
                 g.pagado_por_nombre || String(g.pagado_por_id),
               ]),
+              foot: [['', '', '', '', `S/ ${this.formatNum(r.total_gastos)}`, '']],
               margin: { left: margin, right: margin },
               theme: 'striped',
               headStyles: {
@@ -655,8 +886,20 @@ export class RepartoComponent implements OnInit {
                 fontStyle: 'bold',
                 cellPadding: 4,
               },
+              footStyles: {
+                fillColor: lightGray,
+                textColor: darkColor,
+                fontSize: 9,
+                fontStyle: 'bold',
+                cellPadding: 4,
+              },
               styles: { fontSize: 9, cellPadding: 3 },
-              columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } },
+              columnStyles: {
+                1: { halign: 'center' },
+                2: { halign: 'center' },
+                3: { halign: 'center' },
+                4: { halign: 'right' },
+              },
             });
             y = ((doc as any).lastAutoTable?.finalY ?? y) + 12;
           }
@@ -711,6 +954,52 @@ export class RepartoComponent implements OnInit {
             y += 4;
           }
 
+          const pdfAdjuntosPendientes: { gasto: RepartoGasto; blob: Blob }[] = [];
+          if (this.incluirAdjuntosPdf && r.gastos.length) {
+            for (const g of r.gastos) {
+              let adjuntos: RepartoAdjunto[] = [];
+              try {
+                adjuntos = await firstValueFrom(this.repartoService.getAdjuntos(g.id));
+              } catch {
+                continue;
+              }
+              for (const a of adjuntos) {
+                if (a.content_type?.startsWith('image/')) {
+                  try {
+                    const blob = await firstValueFrom(this.repartoService.getAdjuntoDescarga(a.id));
+                    const dataUrl = await this.blobToDataURL(blob);
+                    doc.addPage();
+                    drawHeader();
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.text(
+                      `${g.concepto} — ${this.formatFecha(g.fecha)} — S/ ${this.formatNum(g.monto_total)} (Pagó: ${g.pagado_por_nombre || ''})`,
+                      margin, y
+                    );
+                    doc.setFont('helvetica', 'normal');
+                    y += 6;
+                    const props = doc.getImageProperties(dataUrl);
+                    const maxW = contentW;
+                    const maxH = pageH - y - margin;
+                    const ratio = Math.min(maxW / props.width, maxH / props.height);
+                    const w = props.width * ratio;
+                    const h = props.height * ratio;
+                    doc.addImage(dataUrl, props.fileType, margin, y, w, h);
+                  } catch {
+                    // si falla la descarga de un adjunto, se omite y se continúa con el resto
+                  }
+                } else if (a.content_type === 'application/pdf') {
+                  try {
+                    const blob = await firstValueFrom(this.repartoService.getAdjuntoDescarga(a.id));
+                    pdfAdjuntosPendientes.push({ gasto: g, blob });
+                  } catch {
+                    // si falla la descarga de un adjunto, se omite y se continúa con el resto
+                  }
+                }
+              }
+            }
+          }
+
           const totalP = (doc as any).internal.getNumberOfPages();
           for (let i = 1; i <= totalP; i++) {
             doc.setPage(i);
@@ -725,7 +1014,39 @@ export class RepartoComponent implements OnInit {
           }
 
           const nombreArchivo = `reparto-detalle-${desde || 'todo'}-${hasta || 'todo'}.pdf`;
-          doc.save(nombreArchivo);
+
+          if (pdfAdjuntosPendientes.length > 0) {
+            const merged = await PDFDocument.load(doc.output('arraybuffer'));
+            const font = await merged.embedFont(StandardFonts.HelveticaBold);
+            for (const { gasto: g, blob } of pdfAdjuntosPendientes) {
+              try {
+                const bytes = await blob.arrayBuffer();
+                const adjuntoDoc = await PDFDocument.load(bytes);
+                const copiedPages = await merged.copyPages(adjuntoDoc, adjuntoDoc.getPageIndices());
+                const [firstPage] = copiedPages;
+                const { width, height } = firstPage.getSize();
+                const bannerH = 16;
+                firstPage.drawRectangle({ x: 0, y: height - bannerH, width, height: bannerH, color: rgb(1, 1, 1), opacity: 0.85 });
+                firstPage.drawText(
+                  `Recibo: ${g.concepto} — ${this.formatFecha(g.fecha)} — S/ ${this.formatNum(g.monto_total)} (Pagó: ${g.pagado_por_nombre || ''})`,
+                  { x: 16, y: height - bannerH + 4, size: 9, font, color: rgb(0.17, 0.24, 0.31), maxWidth: width - 32 }
+                );
+                for (const page of copiedPages) merged.addPage(page);
+              } catch {
+                // si falla la fusión de un adjunto, se omite y se continúa con el resto
+              }
+            }
+            const mergedBytes = await merged.save();
+            const blobOut = new Blob([mergedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blobOut);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            a.click();
+            URL.revokeObjectURL(url);
+          } else {
+            doc.save(nombreArchivo);
+          }
           this.notify.success('PDF descargado');
         } catch (err) {
           this.notify.error('Error al generar el PDF');
@@ -735,6 +1056,275 @@ export class RepartoComponent implements OnInit {
       },
       error: () => {
         this.descargandoPdf = false;
+        this.notify.error('Error al cargar datos para el PDF');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  /** Reporte solo de gastos en borrador: muestra cuota de cada uno por recibo (no saldos), fechas de corte/vencimiento e imágenes adjuntas. */
+  descargarPdfBorradores(): void {
+    this.descargandoPdfBorradores = true;
+    const desde = this.reporteDesde?.trim() || undefined;
+    const hasta = this.reporteHasta?.trim() || undefined;
+    this.repartoService.getResumen(desde, hasta, this.repartoId).subscribe({
+      next: async (r) => {
+        try {
+          const borradores = r.gastos.filter(g => g.estado === 'borrador');
+          if (!borradores.length) {
+            this.notify.info('No hay gastos en borrador en este período');
+            this.descargandoPdfBorradores = false;
+            this.cdr.detectChanges();
+            return;
+          }
+
+          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const margin = 16;
+          const pageW = doc.internal.pageSize.getWidth();
+          const pageH = doc.internal.pageSize.getHeight();
+          const contentW = pageW - margin * 2;
+          let y = margin;
+          const headerH = 22;
+          const primaryColor: [number, number, number] = [41, 128, 185];
+          const darkColor: [number, number, number] = [44, 62, 80];
+
+          const drawHeader = () => {
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, pageW, headerH, 'F');
+            doc.setFillColor(...darkColor);
+            doc.rect(0, headerH, pageW, 1.2, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('GASTOS EN BORRADOR', margin, 12);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('DALP Cobros', pageW - margin, 8, { align: 'right' });
+            const periodo = (desde && hasta) ? `Período: ${this.formatFecha(desde)} — ${this.formatFecha(hasta)}` : 'Período: todo';
+            doc.text(periodo, margin, 18);
+            doc.setTextColor(0, 0, 0);
+            y = headerH + 14;
+          };
+
+          doc.setProperties({ title: 'Gastos en borrador', subject: 'Cuotas pendientes por recibo' });
+          drawHeader();
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Recibos pendientes de pago, con la cuota que le corresponde a cada uno.', margin, y);
+          y += 10;
+
+          // ── Resumen consolidado ──────────────────────────────────────
+          // La cuota de los gastos compartidos (sin participantes específicos) descuenta los
+          // cargos adicionales mensuales del fondo común: base = (monto - sumaCargos) / N, y
+          // cada integrante con cargo extra absorbe su propio cargo además de esa base.
+          const N = r.miembros.length;
+          const calcularCuotasGasto = (g: RepartoGasto): { miembro_id: number; nombre: string; cuota: number }[] => {
+            const participantes = g.participantes ?? [];
+            // Si los participantes son todos los miembros con el mismo peso, equivale a
+            // repartir entre todos por igual: se trata como gasto compartido para que
+            // apliquen los cargos adicionales asociados a este recibo.
+            const esTodosPorIgual = participantes.length === N
+              && r.miembros.every(m => participantes.some(p => p.miembro_id === m.id))
+              && participantes.every(p => p.peso === participantes[0].peso);
+            if (participantes.length > 0 && !esTodosPorIgual) {
+              const sumPeso = participantes.reduce((s, p) => s + p.peso, 0);
+              return participantes.map(p => ({
+                miembro_id: p.miembro_id,
+                nombre: r.miembros.find(m => m.id === p.miembro_id)?.nombre || String(p.miembro_id),
+                cuota: sumPeso > 0 ? g.monto_total * (p.peso / sumPeso) : 0,
+              }));
+            }
+            const cargosGasto = Object.fromEntries((g.cargos ?? []).map(c => [c.miembro_id, c.monto]));
+            const sumCargosGasto = Object.values(cargosGasto).reduce((a, b) => a + b, 0);
+            const base = N > 0 ? (g.monto_total - sumCargosGasto) / N : 0;
+            return r.miembros.map(m => ({
+              miembro_id: m.id,
+              nombre: m.nombre,
+              cuota: base + (cargosGasto[m.id] ?? 0),
+            }));
+          };
+
+          const totalBorradores = borradores.reduce((s, g) => s + Number(g.monto_total), 0);
+          const cuotaConsolidada = new Map<number, number>();
+          for (const g of borradores) {
+            for (const c of calcularCuotasGasto(g)) {
+              cuotaConsolidada.set(c.miembro_id, (cuotaConsolidada.get(c.miembro_id) ?? 0) + c.cuota);
+            }
+          }
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.text('Resumen consolidado', margin, y);
+          y += 6;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.text(`Total de gastos en borrador: S/ ${this.formatNum(totalBorradores)}  (${borradores.length} recibo${borradores.length === 1 ? '' : 's'})`, margin, y);
+          y += 8;
+
+          autoTable(doc, {
+            startY: y,
+            head: [['Integrante', 'Cuota total pendiente', 'Cargo extra/mes']],
+            body: r.miembros.map(m => [
+              m.nombre,
+              `S/ ${this.formatNum(cuotaConsolidada.get(m.id) ?? 0)}`,
+              (m.cargo_adicional_mensual ?? 0) > 0 ? `S/ ${this.formatNum(m.cargo_adicional_mensual ?? 0)}` : '—',
+            ]),
+            margin: { left: margin, right: margin },
+            theme: 'striped',
+            headStyles: { fillColor: darkColor, textColor: 255, fontSize: 9, fontStyle: 'bold', cellPadding: 4 },
+            styles: { fontSize: 9, cellPadding: 3 },
+            columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+          });
+          y = ((doc as any).lastAutoTable?.finalY ?? y) + 5;
+
+          if (r.miembros.some(m => (m.cargo_adicional_mensual ?? 0) > 0)) {
+            doc.setFontSize(8);
+            doc.setTextColor(120, 120, 120);
+            doc.text('* "Cargo extra/mes" es un monto adicional que ese integrante asume cada mes por el aire acondicionado (parte del recibo de luz). Ya está incluido en su "Cuota total pendiente": el fondo común de cada recibo se reparte', margin, y);
+            y += 4;
+            doc.text('  primero descontando estos cargos entre todos, y luego cada integrante con cargo extra lo asume completo, por eso a los demás les toca menos.', margin, y);
+            doc.setTextColor(0, 0, 0);
+            y += 5;
+          }
+          y += 8;
+
+          const pdfAdjuntosPendientes: { gasto: RepartoGasto; blob: Blob }[] = [];
+
+          for (let idx = 0; idx < borradores.length; idx++) {
+            const g = borradores[idx];
+            if (idx > 0 || y > pageH - 60) { doc.addPage(); drawHeader(); }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text((g.concepto || '') + (g.categoria_nombre ? ' · ' + g.categoria_nombre : ''), margin, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.text(
+              `Fecha: ${this.formatFecha(g.fecha)}   Corte: ${g.fecha_corte ? this.formatFecha(g.fecha_corte) : '—'}   Vence: ${g.fecha_vencimiento ? this.formatFecha(g.fecha_vencimiento) : '—'}`,
+              margin, y
+            );
+            y += 5;
+            doc.text(`Monto total: S/ ${this.formatNum(g.monto_total)}   Pagó: ${g.pagado_por_nombre || String(g.pagado_por_id)}${(g.meses ?? 1) > 1 ? `   Cubre ${g.meses} meses` : ''}`, margin, y);
+            y += 6;
+
+            const bodyCuotas = calcularCuotasGasto(g).map(c => [
+              c.nombre,
+              `S/ ${this.formatNum(c.cuota)}`,
+            ]);
+
+            autoTable(doc, {
+              startY: y,
+              head: [['Integrante', 'Cuota de este recibo']],
+              body: bodyCuotas,
+              margin: { left: margin, right: margin },
+              theme: 'striped',
+              headStyles: { fillColor: darkColor, textColor: 255, fontSize: 9, fontStyle: 'bold', cellPadding: 4 },
+              styles: { fontSize: 9, cellPadding: 3 },
+              columnStyles: { 1: { halign: 'right' } },
+            });
+            y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
+
+            let adjuntos: RepartoAdjunto[] = [];
+            try {
+              adjuntos = await firstValueFrom(this.repartoService.getAdjuntos(g.id));
+            } catch {
+              continue;
+            }
+            for (const a of adjuntos) {
+              if (a.content_type?.startsWith('image/')) {
+                try {
+                  const blob = await firstValueFrom(this.repartoService.getAdjuntoDescarga(a.id));
+                  const dataUrl = await this.blobToDataURL(blob);
+                  doc.addPage();
+                  drawHeader();
+                  doc.setFont('helvetica', 'bold');
+                  doc.setFontSize(11);
+                  doc.text(
+                    `${g.concepto} — ${this.formatFecha(g.fecha)} — S/ ${this.formatNum(g.monto_total)} (Pagó: ${g.pagado_por_nombre || ''})`,
+                    margin, y
+                  );
+                  doc.setFont('helvetica', 'normal');
+                  y += 6;
+                  const props = doc.getImageProperties(dataUrl);
+                  const maxW = contentW;
+                  const maxH = pageH - y - margin;
+                  const ratio = Math.min(maxW / props.width, maxH / props.height);
+                  const w = props.width * ratio;
+                  const h = props.height * ratio;
+                  doc.addImage(dataUrl, props.fileType, margin, y, w, h);
+                } catch {
+                  // si falla la descarga de un adjunto, se omite y se continúa con el resto
+                }
+              } else if (a.content_type === 'application/pdf') {
+                try {
+                  const blob = await firstValueFrom(this.repartoService.getAdjuntoDescarga(a.id));
+                  pdfAdjuntosPendientes.push({ gasto: g, blob });
+                } catch {
+                  // si falla la descarga de un adjunto, se omite y se continúa con el resto
+                }
+              }
+            }
+          }
+
+          const totalP = (doc as any).internal.getNumberOfPages();
+          for (let i = 1; i <= totalP; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text(
+              `Generado el ${new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}  —  Página ${i} de ${totalP}`,
+              margin,
+              pageH - 8
+            );
+            doc.setTextColor(0, 0, 0);
+          }
+
+          const nombreArchivo = `reparto-borradores-${desde || 'todo'}-${hasta || 'todo'}.pdf`;
+
+          if (pdfAdjuntosPendientes.length > 0) {
+            const merged = await PDFDocument.load(doc.output('arraybuffer'));
+            const font = await merged.embedFont(StandardFonts.HelveticaBold);
+            for (const { gasto: g, blob } of pdfAdjuntosPendientes) {
+              try {
+                const bytes = await blob.arrayBuffer();
+                const adjuntoDoc = await PDFDocument.load(bytes);
+                const copiedPages = await merged.copyPages(adjuntoDoc, adjuntoDoc.getPageIndices());
+                const [firstPage] = copiedPages;
+                const { width, height } = firstPage.getSize();
+                const bannerH = 16;
+                firstPage.drawRectangle({ x: 0, y: height - bannerH, width, height: bannerH, color: rgb(1, 1, 1), opacity: 0.85 });
+                firstPage.drawText(
+                  `Recibo: ${g.concepto} — ${this.formatFecha(g.fecha)} — S/ ${this.formatNum(g.monto_total)} (Pagó: ${g.pagado_por_nombre || ''})`,
+                  { x: 16, y: height - bannerH + 4, size: 9, font, color: rgb(0.17, 0.24, 0.31), maxWidth: width - 32 }
+                );
+                for (const page of copiedPages) merged.addPage(page);
+              } catch {
+                // si falla la fusión de un adjunto, se omite y se continúa con el resto
+              }
+            }
+            const mergedBytes = await merged.save();
+            const blobOut = new Blob([mergedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blobOut);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            a.click();
+            URL.revokeObjectURL(url);
+          } else {
+            doc.save(nombreArchivo);
+          }
+          this.notify.success('PDF de borradores descargado');
+        } catch {
+          this.notify.error('Error al generar el PDF de borradores');
+        }
+        this.descargandoPdfBorradores = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.descargandoPdfBorradores = false;
         this.notify.error('Error al cargar datos para el PDF');
         this.cdr.detectChanges();
       },
@@ -936,6 +1526,25 @@ export class RepartoComponent implements OnInit {
     });
   }
 
+  private blobToDataURL(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  estadoVencimiento(g: RepartoGasto): 'vencido' | 'proximo' | null {
+    if (!g.fecha_vencimiento) return null;
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const venc = new Date(g.fecha_vencimiento + 'T00:00:00');
+    const dias = (venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24);
+    if (dias < 0) return 'vencido';
+    if (dias <= 5) return 'proximo';
+    return null;
+  }
+
   getMedioPagoLabel(value: string | null | undefined): string {
     if (!value) return '';
     const item = MEDIOS_PAGO.find(m => m.value === value);
@@ -1023,6 +1632,7 @@ export class RepartoComponent implements OnInit {
       this.reembolsoForm.monto <= 0
     ) {
       this.errReembolso = 'Elige quién paga, a quién y el monto (personas distintas)';
+      this.notify.error(this.errReembolso);
       this.cdr.detectChanges();
       return;
     }
@@ -1041,14 +1651,19 @@ export class RepartoComponent implements OnInit {
       next: () => {
         this.savingReembolso = false;
         this.showReembolso = false;
+        const fechaReembolso = this.reembolsoForm.fecha;
         this.resetReembolsoForm();
         this.load();
         this.notify.success('Reembolso registrado');
+        if (this.fechaFueraDePeriodo(fechaReembolso)) {
+          this.notify.info('El reembolso se guardó, pero su fecha está fuera del período mostrado. Cambia a "Todo" para verlo.');
+        }
         this.cdr.detectChanges();
       },
       error: (e) => {
         this.savingReembolso = false;
         this.errReembolso = e.error?.error || 'Error al guardar';
+        this.notify.error(this.errReembolso);
         this.cdr.detectChanges();
       },
     });
@@ -1085,6 +1700,7 @@ export class RepartoComponent implements OnInit {
       this.reembolsoFormEdit.monto <= 0
     ) {
       this.errReembolsoEdit = 'Elige quién paga, a quién y el monto (personas distintas)';
+      this.notify.error(this.errReembolsoEdit);
       this.cdr.detectChanges();
       return;
     }
@@ -1109,6 +1725,7 @@ export class RepartoComponent implements OnInit {
       error: (e) => {
         this.savingReembolsoEdit = false;
         this.errReembolsoEdit = e.error?.error || 'Error al guardar';
+        this.notify.error(this.errReembolsoEdit);
         this.cdr.detectChanges();
       },
     });
@@ -1189,12 +1806,14 @@ export class RepartoComponent implements OnInit {
   submitNuevoMiembro(): void {
     if (!this.nuevoMiembroForm.nombre?.trim()) {
       this.errNuevoMiembro = 'Escribe el nombre de la persona';
+      this.notify.error(this.errNuevoMiembro);
       this.cdr.detectChanges();
       return;
     }
     const cargo = Number(this.nuevoMiembroForm.cargo_adicional_mensual);
     if (isNaN(cargo) || cargo < 0) {
       this.errNuevoMiembro = 'Cargo adicional debe ser un número ≥ 0';
+      this.notify.error(this.errNuevoMiembro);
       this.cdr.detectChanges();
       return;
     }
@@ -1216,6 +1835,7 @@ export class RepartoComponent implements OnInit {
       error: (e) => {
         this.savingNuevoMiembro = false;
         this.errNuevoMiembro = e.error?.error || 'Error al agregar';
+        this.notify.error(this.errNuevoMiembro);
         this.cdr.detectChanges();
       },
     });

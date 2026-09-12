@@ -7,6 +7,8 @@ import { ExportService } from '../../services/export.service';
 import { FormatNumberPipe } from '../../shared/pipes/format-number.pipe';
 import { SkeletonComponent } from '../../shared/skeleton/skeleton.component';
 import { Prestamo } from '../../models/index';
+import { formatSoles, formatFecha } from '../../shared/utils/format';
+import { withLoading } from '../../shared/utils/loading';
 
 @Component({
   selector: 'app-prestamos',
@@ -78,6 +80,17 @@ export class PrestamosComponent implements OnInit {
     return Math.min(this.PAGE_SIZE, this.filtered.length - this.prestamosVisible);
   }
 
+  formatoTipo(tipo: string | null | undefined): string {
+    if (!tipo) return '—';
+    const map: Record<string, string> = {
+      prestamo_personal: 'Personal',
+      prestamo_bancario: 'Bancario',
+      pandero: 'Pandero',
+      otro: 'Otro'
+    };
+    return map[tipo] || tipo.replace(/_/g, ' ');
+  }
+
   verMasPrestamos(): void {
     this.prestamosVisible += this.PAGE_SIZE;
   }
@@ -99,10 +112,14 @@ export class PrestamosComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.prestamosService.getAll().subscribe({
-      next: (p) => { this.prestamos = p; this.loading = false; this.cdr.detectChanges(); },
-      error: () => { this.loading = false; this.cdr.detectChanges(); }
-    });
+    this.cargar();
+  }
+
+  cargar(): void {
+    this.loading = true;
+    this.prestamosService.getAll().subscribe(withLoading(this.cdr, v => this.loading = v, {
+      next: (p) => { this.prestamos = p; }
+    }));
   }
 
   exportExcel(): void {
@@ -134,11 +151,87 @@ export class PrestamosComponent implements OnInit {
   }
 
   exportPdf(): void {
-    const thead = '<tr><th>Deudor</th><th>Tipo</th><th>Descripción</th><th>Monto</th><th>Cobrado</th><th>Pendiente</th><th>Inicio</th><th>Estado</th></tr>';
+    const fechaGen = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const filtros: string[] = [];
+    if (this.filtroEstado !== 'todos') filtros.push('Estado: ' + this.filtroEstado);
+    if (this.filtroTipo) filtros.push('Tipo: ' + this.formatoTipo(this.filtroTipo));
+    if (this.searchTerm.trim()) filtros.push('Búsqueda: "' + this.searchTerm.trim() + '"');
+
+    const thead = `
+      <tr>
+        <th>Deudor</th>
+        <th>Tipo</th>
+        <th>Descripción</th>
+        <th class="text-right">Monto</th>
+        <th class="text-right">Cobrado</th>
+        <th class="text-right">Pendiente</th>
+        <th>Inicio</th>
+        <th class="text-center">Estado</th>
+      </tr>`;
+
+    const badgeClass = (estado: string) => 'badge badge-' + (estado || 'activo').toLowerCase();
+
     const tbody = this.filtered.map(p =>
-      `<tr><td>${p.deudor_nombre || ''}</td><td>${p.tipo || ''}</td><td>${p.descripcion || ''}</td><td>S/ ${(+(p.monto_original ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>S/ ${(+(p.total_pagado ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>S/ ${(+(p.saldo_pendiente ?? 0)).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</td><td>${p.fecha_inicio ? p.fecha_inicio.split('T')[0] : ''}</td><td>${p.estado || ''}</td></tr>`
+      `<tr>
+        <td>${(p.deudor_nombre || '—').replace(/</g, '&lt;')}</td>
+        <td>${this.formatoTipo(p.tipo)}</td>
+        <td>${(p.descripcion || '—').replace(/</g, '&lt;')}</td>
+        <td class="text-right num">${formatSoles(p.monto_original ?? 0)}</td>
+        <td class="text-right num">${formatSoles(p.total_pagado ?? 0)}</td>
+        <td class="text-right num">${formatSoles(p.saldo_pendiente ?? 0)}</td>
+        <td>${formatFecha(p.fecha_inicio)}</td>
+        <td class="text-center"><span class="${badgeClass(p.estado || '')}">${(p.estado || '—').toLowerCase()}</span></td>
+      </tr>`
     ).join('');
-    const html = `<h1>Listado de préstamos</h1><p>Generado el ${new Date().toLocaleDateString('es-PE')} — ${this.filtered.length} préstamos</p><table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
-    this.exportService.downloadPdfFromHtml(html, 'prestamos_' + new Date().toISOString().split('T')[0] + '.pdf');
+
+    const totalRow = `
+      <tr class="total-row">
+        <td colspan="3"><strong>Total (${this.filtered.length} préstamos)</strong></td>
+        <td class="text-right num">${formatSoles(this.totalMontoOriginal)}</td>
+        <td class="text-right num">—</td>
+        <td class="text-right num">${formatSoles(this.totalPendiente)}</td>
+        <td colspan="2"></td>
+      </tr>`;
+
+    const summaryHtml = `
+      <div class="report-summary">
+        <div class="report-summary-item">
+          <span class="label">Cantidad</span>
+          <strong>${this.filtered.length} préstamo${this.filtered.length !== 1 ? 's' : ''}</strong>
+        </div>
+        <div class="report-summary-item">
+          <span class="label">Monto total</span>
+          <strong>${formatSoles(this.totalMontoOriginal)}</strong>
+        </div>
+        <div class="report-summary-item">
+          <span class="label">Pendiente por cobrar</span>
+          <strong>${formatSoles(this.totalPendiente)}</strong>
+        </div>
+      </div>`;
+
+    const filtrosHtml = filtros.length
+      ? `<p class="report-meta" style="margin-top:8px"><strong>Filtros aplicados:</strong> ${filtros.join(' · ')}</p>`
+      : '';
+
+    const html = `
+      <div class="report-header">
+        <h1 class="report-title">Reporte de Préstamos</h1>
+        <p class="report-meta">Generado el ${fechaGen}</p>
+        ${filtrosHtml}
+      </div>
+      ${summaryHtml}
+      <table>
+        <thead>${thead}</thead>
+        <tbody>
+          ${tbody || '<tr><td colspan="8" class="empty-msg">No hay préstamos que coincidan con los criterios.</td></tr>'}
+          ${tbody ? totalRow : ''}
+        </tbody>
+      </table>
+      <div class="report-footer">
+        Documento generado por DALP Cobros. Este reporte refleja los datos según los filtros aplicados al momento de la exportación.
+      </div>`;
+
+    const filename = 'reporte_prestamos_' + new Date().toISOString().split('T')[0] + '.pdf';
+    this.exportService.downloadPdfFromHtml(html, filename);
   }
 }
